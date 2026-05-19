@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-PT">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -8,7 +8,7 @@
     <!-- Tailwind CSS (Estilos) -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Babel (Para o navegador entender o React/JSX) -->
+    <!-- Babel (Para o navegador entender o React/JSX diretamente) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <!-- Estilos extras para esconder a barra de rolagem -->
@@ -21,9 +21,24 @@
             scrollbar-width: none;
         }
     </style>
+
+    <!-- Proteção contra Ecrã Branco -->
+    <script>
+        window.addEventListener('error', function(event) {
+            const root = document.getElementById('root');
+            if(root && root.innerHTML.includes('A carregar')) {
+                root.innerHTML = '<div style="padding: 20px; color: #ef4444; background-color: #fef2f2; min-height: 100vh; font-family: sans-serif;"><b>Erro no carregamento:</b><br><br>' + event.error + '<br><br>Verifique a consola do navegador (F12) para mais detalhes.</div>';
+            }
+        });
+    </script>
 </head>
 <body class="bg-zinc-950 antialiased text-zinc-900">
-    <div id="root"></div>
+    <div id="root">
+        <!-- Indicador de carregamento enquanto a página processa o código -->
+        <div class="min-h-screen flex items-center justify-center bg-zinc-950">
+            <div class="animate-pulse text-zinc-400 font-semibold tracking-widest text-sm uppercase">A carregar a aplicação...</div>
+        </div>
+    </div>
 
     <!-- Script Principal React da Aplicação -->
     <script type="text/babel" data-type="module">
@@ -41,7 +56,7 @@
           doc, updateDoc, deleteDoc, setDoc 
         } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-        // --- FIREBASE INITIALIZATION ---
+        // --- INICIALIZAÇÃO FIREBASE ---
         const meuFirebaseConfig = {
           apiKey: "AIzaSyDA2jcKD1cLvpnqobRSyYh0stvrBjcMMcs",
           authDomain: "trevisan-54c36.firebaseapp.com",
@@ -52,7 +67,6 @@
           measurementId: "G-5QBZPRXFC1"
         };
 
-        // Usa o config do ambiente de teste se estiver aqui, senão usa o SEU banco de dados em produção
         let configToUse = meuFirebaseConfig;
         try {
           if (typeof __firebase_config !== 'undefined' && __firebase_config) {
@@ -63,15 +77,13 @@
         const app = initializeApp(configToUse);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        
-        // Mantém isolamento do app
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'simmobile-app';
 
-        // --- DEFAULT SETTINGS ---
+        // --- DEFINIÇÕES POR DEFEITO ---
         const DEFAULT_SETTINGS = {
           whatsappNumber: '5511999999999',
           heroTitle: 'Equipamentos de alta performance',
-          heroSubtitle: 'Locação sob medida para o seu negócio. Escolha o equipamento e receba uma proposta rápida.',
+          heroSubtitle: 'Locação à medida para o seu negócio. Escolha o equipamento e receba uma proposta rápida.',
           heroButtonText: 'Iniciar Cotação',
           heroImageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
           logoUrl: '', 
@@ -79,9 +91,9 @@
         };
 
         const DEFAULT_PRODUCTS = [
-          { id: '1', name: 'Notebooks Corporativos', desc: 'Alta performance para equipes de escritório e campo.', imageUrl: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' },
+          { id: '1', name: 'Notebooks Corporativos', desc: 'Alta performance para equipas de escritório e terreno.', imageUrl: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' },
           { id: '2', name: 'Impressoras e Multifuncionais', desc: 'Reduza custos com outsourcing de impressão.', imageUrl: 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' },
-          { id: '3', name: 'Smartphones Corporativos', desc: 'Comunicação e mobilidade para seu time de vendas.', imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' }
+          { id: '3', name: 'Smartphones Corporativos', desc: 'Comunicação e mobilidade para a sua equipa de vendas.', imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' }
         ];
 
         function App() {
@@ -97,13 +109,12 @@
           useEffect(() => {
             const initAuth = async () => {
               try {
-                // Tenta autenticar via token (no ambiente de visualização) ou anonimamente (em produção)
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                   await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
                   await signInAnonymously(auth);
                 }
-              } catch (error) { console.error("Auth error:", error); }
+              } catch (error) { console.error("Erro na autenticação:", error); }
             };
             initAuth();
             const unsubscribeAuth = onAuthStateChanged(auth, setUser);
@@ -120,7 +131,7 @@
               if (docSnap.exists()) setSettings({ ...DEFAULT_SETTINGS, ...docSnap.data() });
               else setDoc(settingsRef, DEFAULT_SETTINGS).catch(console.error);
               setLoading(false);
-            }, (error) => console.error("Error fetching settings:", error));
+            }, (error) => console.error("Erro definições:", error));
 
             const unsubProducts = onSnapshot(productsRef, (snapshot) => {
               if (snapshot.empty && products.length === 0) {
@@ -130,13 +141,13 @@
                 snapshot.forEach(doc => prods.push({ id: doc.id, ...doc.data() }));
                 setProducts(prods);
               }
-            }, (error) => console.error("Error fetching products:", error));
+            }, (error) => console.error("Erro produtos:", error));
 
             const unsubLeads = onSnapshot(leadsRef, (snapshot) => {
               const lds = [];
               snapshot.forEach(doc => lds.push({ id: doc.id, ...doc.data() }));
               setLeads(lds.sort((a, b) => b.createdAt - a.createdAt));
-            }, (error) => console.error("Error fetching leads:", error));
+            }, (error) => console.error("Erro leads:", error));
 
             return () => { unsubSettings(); unsubProducts(); unsubLeads(); };
           }, [user]);
@@ -146,10 +157,7 @@
             try {
               await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'leads'), { ...leadData, status: 'Novo', createdAt: Date.now() });
               return true;
-            } catch (error) { 
-              console.error("Error saving lead:", error);
-              return false; 
-            }
+            } catch (error) { return false; }
           };
 
           if (loading) {
@@ -186,7 +194,7 @@
           };
 
           const validateAndNext = () => {
-            if (step === 2 && !formData.cnpj.trim()) return setErrorMsg('Obrigatório informar CNPJ ou Empresa.');
+            if (step === 2 && !formData.cnpj.trim()) return setErrorMsg('É obrigatório informar CNPJ ou Empresa.');
             if (step === 3 && (!formData.nome.trim() || !formData.whatsapp.trim())) return setErrorMsg('Nome e WhatsApp são obrigatórios.');
             setErrorMsg('');
             setStep(s => s + 1);
@@ -223,7 +231,7 @@
                     </div>
 
                     <div className="flex-1 relative overflow-hidden rounded-b-[2rem] shadow-sm">
-                      <img src={settings.heroImageUrl} alt="Cover" className="absolute inset-0 w-full h-full object-cover scale-105" />
+                      <img src={settings.heroImageUrl} alt="Capa" className="absolute inset-0 w-full h-full object-cover scale-105" />
                       <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/40 to-black/40"></div>
                       
                       <div className="absolute bottom-0 left-0 w-full p-6 text-white z-10 pb-12">
@@ -302,7 +310,7 @@
                     <div className="p-6 pb-4">
                       <span className="text-xs font-bold tracking-widest uppercase mb-2 block" style={primaryTextStyle}>Passo 2 de 4</span>
                       <h2 className="text-2xl font-semibold text-zinc-900 tracking-tight leading-tight">Dados da Empresa</h2>
-                      <p className="text-sm text-zinc-500 mt-2 leading-relaxed">Precisamos de alguns dados para preparar sua cotação.</p>
+                      <p className="text-sm text-zinc-500 mt-2 leading-relaxed">Precisamos de alguns dados para preparar a sua cotação.</p>
                     </div>
                     
                     <div className="flex-1 p-6 space-y-5 overflow-y-auto">
@@ -312,7 +320,7 @@
                       </div>
                       <div>
                         <label className="block text-sm font-semibold text-zinc-800 mb-2">Nome Fantasia (Opcional)</label>
-                        <input type="text" name="empresa" value={formData.empresa} onChange={handleInputChange} className="w-full px-5 py-4 rounded-2xl bg-zinc-50 border border-zinc-200 focus:bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all shadow-sm text-lg" style={{ '--tw-ring-color': settings.primaryColor }} placeholder="Sua Empresa" />
+                        <input type="text" name="empresa" value={formData.empresa} onChange={handleInputChange} className="w-full px-5 py-4 rounded-2xl bg-zinc-50 border border-zinc-200 focus:bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all shadow-sm text-lg" style={{ '--tw-ring-color': settings.primaryColor }} placeholder="A Sua Empresa" />
                       </div>
                       {errorMsg && <p className="text-red-500 text-sm font-medium p-3 bg-red-50 rounded-xl animate-in fade-in">{errorMsg}</p>}
                     </div>
@@ -328,14 +336,14 @@
                   <div className="flex flex-col h-full bg-white animate-in slide-in-from-right-8 duration-300">
                     <div className="p-6 pb-4">
                       <span className="text-xs font-bold tracking-widest uppercase mb-2 block" style={primaryTextStyle}>Passo 3 de 4</span>
-                      <h2 className="text-2xl font-semibold text-zinc-900 tracking-tight leading-tight">Seus contatos</h2>
+                      <h2 className="text-2xl font-semibold text-zinc-900 tracking-tight leading-tight">Os seus contactos</h2>
                       <p className="text-sm text-zinc-500 mt-2 leading-relaxed">Para onde enviamos a proposta?</p>
                     </div>
                     
                     <div className="flex-1 p-6 space-y-5 overflow-y-auto">
                       <div>
-                        <label className="block text-sm font-semibold text-zinc-800 mb-2">Seu Nome</label>
-                        <input autoFocus type="text" name="nome" value={formData.nome} onChange={handleInputChange} className="w-full px-5 py-4 rounded-2xl bg-zinc-50 border border-zinc-200 focus:bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all shadow-sm text-base" style={{ '--tw-ring-color': settings.primaryColor }} placeholder="Como podemos te chamar?" />
+                        <label className="block text-sm font-semibold text-zinc-800 mb-2">O Seu Nome</label>
+                        <input autoFocus type="text" name="nome" value={formData.nome} onChange={handleInputChange} className="w-full px-5 py-4 rounded-2xl bg-zinc-50 border border-zinc-200 focus:bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all shadow-sm text-base" style={{ '--tw-ring-color': settings.primaryColor }} placeholder="Como podemos chamá-lo?" />
                       </div>
                       <div>
                         <label className="block text-sm font-semibold text-zinc-800 mb-2">WhatsApp</label>
@@ -358,7 +366,7 @@
                 return (
                   <div className="flex flex-col h-full bg-white animate-in slide-in-from-right-8 duration-300">
                     <div className="p-6 pb-4">
-                      <span className="text-xs font-bold tracking-widest uppercase mb-2 block" style={primaryTextStyle}>Finalizando</span>
+                      <span className="text-xs font-bold tracking-widest uppercase mb-2 block" style={primaryTextStyle}>A finalizar</span>
                       <h2 className="text-2xl font-semibold text-zinc-900 tracking-tight leading-tight">Detalhes extras</h2>
                       <p className="text-sm text-zinc-500 mt-2 leading-relaxed">Especifique modelos ou quantidades (opcional).</p>
                     </div>
@@ -369,7 +377,7 @@
                     
                     <div className="p-6 bg-white border-t border-zinc-50">
                       <button onClick={handleSubmit} disabled={isSubmitting} style={primaryStyle} className="w-full font-semibold text-lg py-4.5 rounded-2xl transition-all shadow-lg active:scale-95 flex justify-center items-center gap-2">
-                        {isSubmitting ? <span className="animate-pulse">Finalizando...</span> : 'Concluir e falar no WhatsApp'}
+                        {isSubmitting ? <span className="animate-pulse">A finalizar...</span> : 'Concluir e falar no WhatsApp'}
                       </button>
                     </div>
                   </div>
@@ -382,7 +390,7 @@
                       <CheckCircle2 className="w-12 h-12" />
                     </div>
                     <h2 className="text-3xl font-semibold text-zinc-900 tracking-tight mb-3">Tudo certo!</h2>
-                    <p className="text-zinc-500 text-lg leading-relaxed max-w-[250px]">Abrindo o seu WhatsApp de atendimento...</p>
+                    <p className="text-zinc-500 text-lg leading-relaxed max-w-[250px]">A abrir o seu WhatsApp de atendimento...</p>
                   </div>
                 );
               
@@ -436,7 +444,7 @@
           const handleSubmit = (e) => {
             e.preventDefault();
             if (password === '123') onLogin();
-            else setError('Senha incorreta.');
+            else setError('Palavra-passe incorreta.');
           };
 
           return (
@@ -453,7 +461,7 @@
                 </div>
                 
                 <h2 className="text-2xl font-semibold text-center text-white mb-2 tracking-tight">Painel Gestão</h2>
-                <p className="text-center text-zinc-400 text-sm mb-10 font-medium">Acesso restrito à equipe</p>
+                <p className="text-center text-zinc-400 text-sm mb-10 font-medium">Acesso restrito à equipa</p>
                 
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
@@ -467,7 +475,7 @@
                     {error && <p className="text-red-400 text-sm mt-3 text-center">{error}</p>}
                   </div>
                   <button type="submit" className="w-full text-white font-medium text-lg py-4 rounded-2xl transition-all shadow-lg hover:opacity-90 active:scale-95" style={{ backgroundColor: settings.primaryColor }}>
-                    Acessar
+                    Aceder
                   </button>
                 </form>
               </div>
@@ -552,7 +560,7 @@
                 <div className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 rounded-[2rem]">
                   <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 border border-zinc-100">
                     <h3 className="text-xl font-bold text-zinc-900 mb-2">Excluir Lead?</h3>
-                    <p className="text-zinc-600 text-sm mb-6">Tem certeza que deseja excluir este lead? Esta ação não pode ser desfeita.</p>
+                    <p className="text-zinc-600 text-sm mb-6">Tem a certeza que deseja excluir este lead? Esta ação não pode ser desfeita.</p>
                     <div className="flex gap-3 justify-end">
                       <button onClick={() => setLeadToDelete(null)} className="px-4 py-2.5 rounded-xl text-zinc-600 font-semibold hover:bg-zinc-100 transition-colors text-sm">Cancelar</button>
                       <button onClick={confirmDeleteLead} className="px-4 py-2.5 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 transition-colors text-sm shadow-md">Sim, Excluir</button>
@@ -564,7 +572,7 @@
               <div className="p-8 border-b border-zinc-100 flex flex-col lg:flex-row justify-between gap-5 bg-white">
                 <div>
                   <h3 className="text-2xl font-bold text-zinc-900 tracking-tight">Leads Captados</h3>
-                  <p className="text-zinc-500 text-sm mt-1">Gerencie oportunidades do seu App Funil.</p>
+                  <p className="text-zinc-500 text-sm mt-1">Gira as oportunidades do seu App Funil.</p>
                 </div>
                 <button onClick={exportCSV} className="flex items-center gap-2.5 text-white px-6 py-3 rounded-xl text-sm font-semibold shadow-md hover:opacity-90 transition-all" style={{ backgroundColor: primaryColor }}>
                   <Download className="w-4 h-4" /> Exportar Planilha
@@ -574,10 +582,10 @@
               <div className="p-5 bg-zinc-50 border-b border-zinc-100 flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1">
                   <Search className="w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-zinc-400" />
-                  <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-12 pr-4 py-3 text-sm rounded-xl border border-zinc-200 focus:ring-2 focus:ring-zinc-900 bg-white" />
+                  <input type="text" placeholder="Pesquisar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-12 pr-4 py-3 text-sm rounded-xl border border-zinc-200 focus:ring-2 focus:ring-zinc-900 bg-white" />
                 </div>
                 <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-5 py-3 text-sm rounded-xl border border-zinc-200 bg-white font-medium text-zinc-700">
-                  <option value="Todos">Todos os Status</option>
+                  <option value="Todos">Todos os Estados</option>
                   <option value="Novo">Novo</option>
                   <option value="Em atendimento">Em atendimento</option>
                   <option value="Convertido">Convertido</option>
@@ -635,17 +643,17 @@
           const handleSettingChange = (e) => setLocalSettings(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
           const saveSettings = async () => {
-            setSavingMsg('Salvando...');
+            setSavingMsg('A guardar...');
             try {
               await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'general'), localSettings);
-              setSavingMsg('Salvo!'); setTimeout(() => setSavingMsg(''), 3000);
-            } catch (e) { setSavingMsg('Erro ao salvar.'); }
+              setSavingMsg('Guardado!'); setTimeout(() => setSavingMsg(''), 3000);
+            } catch (e) { setSavingMsg('Erro ao guardar.'); }
           };
 
           const handleFileUpload = (e, targetSetter, fieldName) => {
             const file = e.target.files[0];
             if (!file) return;
-            if (file.size > 800000) return alert("A imagem deve ter no máximo 800KB para não sobrecarregar o banco de dados.");
+            if (file.size > 800000) return alert("A imagem deve ter no máximo 800KB para não sobrecarregar a base de dados.");
             const reader = new FileReader();
             reader.onloadend = () => targetSetter(prev => ({ ...prev, [fieldName]: reader.result }));
             reader.readAsDataURL(file);
@@ -675,7 +683,7 @@
                 <div className="fixed inset-0 bg-zinc-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                   <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 border border-zinc-100">
                     <h3 className="text-xl font-bold text-zinc-900 mb-2">Remover Produto?</h3>
-                    <p className="text-zinc-600 text-sm mb-6">Tem certeza que deseja remover este produto da sua lista permanentemente?</p>
+                    <p className="text-zinc-600 text-sm mb-6">Tem a certeza que deseja remover este produto da sua lista permanentemente?</p>
                     <div className="flex gap-3 justify-end">
                       <button onClick={() => setProductToDelete(null)} className="px-4 py-2.5 rounded-xl text-zinc-600 font-semibold hover:bg-zinc-100 transition-colors text-sm">Cancelar</button>
                       <button onClick={confirmDeleteProduct} className="px-4 py-2.5 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 transition-colors text-sm shadow-md">Sim, Remover</button>
