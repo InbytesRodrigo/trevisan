@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SimMobile - Outsourcing de TI</title>
+    <title>Trevisan Impressoras</title>
     
     <!-- Tailwind CSS (Estilos) -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -47,7 +47,7 @@
         import { 
           Printer, Laptop, Receipt, Settings, Users, LogOut, 
           Search, Download, Trash2, Plus, CheckCircle2, X,
-          Smartphone, ChevronRight, Building2, User, Mail, Phone, MessageSquare, Image as ImageIcon, Palette, ShieldCheck, ArrowLeft, Check
+          Smartphone, ChevronRight, Building2, User, Mail, Phone, MessageSquare, Image as ImageIcon, Palette, ShieldCheck, ArrowLeft, Check, Archive
         } from 'https://esm.sh/lucide-react@0.292.0';
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
@@ -135,17 +135,21 @@
 
             const unsubProducts = onSnapshot(productsRef, (snapshot) => {
               if (snapshot.empty && products.length === 0) {
-                DEFAULT_PRODUCTS.forEach(p => addDoc(productsRef, p).catch(console.error));
+                DEFAULT_PRODUCTS.forEach(p => {
+                  const { id, ...prodData } = p; // Remove o ID fixo antes de adicionar ao Firebase
+                  addDoc(productsRef, prodData).catch(console.error);
+                });
               } else {
                 const prods = [];
-                snapshot.forEach(doc => prods.push({ id: doc.id, ...doc.data() }));
+                // Assegura que o ID gerado pelo Firebase é o único associado ao produto
+                snapshot.forEach(doc => prods.push({ ...doc.data(), id: doc.id }));
                 setProducts(prods);
               }
             }, (error) => console.error("Erro produtos:", error));
 
             const unsubLeads = onSnapshot(leadsRef, (snapshot) => {
               const lds = [];
-              snapshot.forEach(doc => lds.push({ id: doc.id, ...doc.data() }));
+              snapshot.forEach(doc => lds.push({ ...doc.data(), id: doc.id }));
               setLeads(lds.sort((a, b) => b.createdAt - a.createdAt));
             }, (error) => console.error("Erro leads:", error));
 
@@ -225,7 +229,7 @@
                       ) : (
                         <div className="bg-black/30 backdrop-blur-md px-4 py-2 rounded-2xl flex items-center justify-center gap-2 shadow-xl border border-white/10">
                           <Smartphone className="w-5 h-5 text-white" />
-                          <span className="text-white font-bold tracking-tight">App Company</span>
+                          <span className="text-white font-bold tracking-tight">Trevisan Impressoras</span>
                         </div>
                       )}
                     </div>
@@ -416,7 +420,7 @@
                       {settings.logoUrl ? (
                         <img src={settings.logoUrl} alt="Logo" className="max-h-6 max-w-[140px] object-contain" />
                       ) : (
-                        <span className="font-bold text-zinc-800 tracking-tight text-sm">App Company</span>
+                        <span className="font-bold text-zinc-800 tracking-tight text-sm">Trevisan Impressoras</span>
                       )}
                     </div>
                     <div className="w-10"></div> 
@@ -531,27 +535,43 @@
 
           const updateLeadStatus = async (id, newStatus) => { try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leads', id), { status: newStatus }); } catch (e) {} };
           
+          const updateLeadNotes = async (id, notes) => { try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leads', id), { adminNotes: notes }); } catch (e) {} };
+
           const deleteLead = (id) => { setLeadToDelete(id); };
           
           const confirmDeleteLead = async () => {
             if (!leadToDelete) return;
-            try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leads', leadToDelete)); } catch (e) {}
+            try { 
+              await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leads', leadToDelete)); 
+            } catch (e) {
+              console.error("Erro ao apagar lead:", e);
+              alert("Erro ao remover lead. Verifique se tem permissões na base de dados (Firebase Rules).");
+            }
             setLeadToDelete(null);
           };
 
           const exportCSV = () => {
-            const headers = ['Data', 'Nome', 'Empresa/CNPJ', 'WhatsApp', 'Email', 'Produto', 'Status', 'Descrição'];
-            const csvContent = [headers.join(';'), ...filteredLeads.map(l => `${new Date(l.createdAt).toLocaleDateString('pt-BR')};${l.nome};${l.cnpj};${l.whatsapp};${l.email};${l.produto};${l.status};"${(l.descricao || '').replace(/"/g, '""')}"`)].join('\n');
+            const headers = ['Data', 'Nome', 'Empresa/CNPJ', 'WhatsApp', 'Email', 'Produto', 'Status', 'Observações Equipa', 'Descrição Cliente'];
+            const csvContent = [headers.join(';'), ...filteredLeads.map(l => `${new Date(l.createdAt).toLocaleDateString('pt-BR')};${l.nome};${l.cnpj};${l.whatsapp};${l.email};${l.produto};${l.status};"${(l.adminNotes || '').replace(/"/g, '""')}";"${(l.descricao || '').replace(/"/g, '""')}"`)].join('\n');
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "leads_app.csv";
             document.body.appendChild(link); link.click(); document.body.removeChild(link);
           };
 
           const statusColors = {
-            'Novo': 'bg-blue-100 text-blue-800',
+            'Novo': 'bg-indigo-100 text-indigo-800',
             'Em atendimento': 'bg-amber-100 text-amber-800',
             'Convertido': 'bg-emerald-100 text-emerald-800',
-            'Perdido': 'bg-rose-100 text-rose-800'
+            'Perdido': 'bg-rose-100 text-rose-800',
+            'Arquivado': 'bg-zinc-200 text-zinc-800'
+          };
+
+          const cardBgColors = {
+            'Novo': 'bg-indigo-50 border-indigo-200 shadow-indigo-100',
+            'Em atendimento': 'bg-amber-50 border-amber-200 shadow-amber-100',
+            'Convertido': 'bg-emerald-50 border-emerald-200 shadow-emerald-100',
+            'Perdido': 'bg-rose-50 border-rose-200 shadow-rose-100',
+            'Arquivado': 'bg-zinc-100 border-zinc-200 shadow-zinc-100'
           };
 
           return (
@@ -590,39 +610,72 @@
                   <option value="Em atendimento">Em atendimento</option>
                   <option value="Convertido">Convertido</option>
                   <option value="Perdido">Perdido</option>
+                  <option value="Arquivado">Arquivado</option>
                 </select>
               </div>
 
               <div className="p-6">
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                  {filteredLeads.map(lead => (
-                    <div key={lead.id} className="p-6 border border-zinc-200 rounded-2xl hover:shadow-md transition-all bg-white">
-                      <div className="flex justify-between items-start mb-5 border-b border-zinc-100 pb-4">
+                  {filteredLeads.map(lead => {
+                    const cardBg = cardBgColors[lead.status] || 'bg-white border-zinc-200';
+                    return (
+                    <div key={lead.id} className={`p-6 border rounded-2xl hover:shadow-lg transition-all flex flex-col ${cardBg}`}>
+                      <div className="flex justify-between items-start mb-5 border-b border-black/5 pb-4">
                         <div>
                           <h4 className="font-bold text-lg text-zinc-900">{lead.nome}</h4>
                           <p className="text-xs text-zinc-500 mt-1 font-medium">{new Date(lead.createdAt).toLocaleDateString('pt-BR')} às {new Date(lead.createdAt).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</p>
                         </div>
-                        <select value={lead.status} onChange={(e) => updateLeadStatus(lead.id, e.target.value)} className={`text-xs font-bold px-3 py-1.5 rounded-lg outline-none cursor-pointer appearance-none ${statusColors[lead.status]}`}>
+                        <select value={lead.status} onChange={(e) => updateLeadStatus(lead.id, e.target.value)} className={`text-xs font-bold px-3 py-1.5 rounded-lg outline-none cursor-pointer appearance-none shadow-sm ${statusColors[lead.status] || statusColors['Novo']}`}>
                           <option value="Novo">Novo</option>
                           <option value="Em atendimento">Em atendimento</option>
                           <option value="Convertido">Convertido</option>
                           <option value="Perdido">Perdido</option>
+                          <option value="Arquivado">Arquivado</option>
                         </select>
                       </div>
-                      <div className="space-y-2.5 text-sm">
-                        <div className="flex gap-3 text-zinc-700 font-medium"><Building2 className="w-4 h-4 text-zinc-400"/> {lead.cnpj}</div>
-                        <div className="flex gap-3 text-zinc-700"><Phone className="w-4 h-4 text-zinc-400"/> {lead.whatsapp}</div>
-                        {lead.email && <div className="flex gap-3 text-zinc-700"><Mail className="w-4 h-4 text-zinc-400"/> {lead.email}</div>}
-                        <div className="mt-4 pt-4 border-t border-zinc-100">
-                          <span className="inline-block bg-zinc-900 text-white text-xs px-3 py-1.5 rounded-md mb-2 font-semibold tracking-wide">{lead.produto}</span>
-                          {lead.descricao && <p className="text-sm text-zinc-600 bg-zinc-50 p-3 rounded-xl border border-zinc-100">"{lead.descricao}"</p>}
+                      
+                      <div className="space-y-2.5 text-sm flex-1">
+                        <div className="flex gap-3 text-zinc-800 font-medium"><Building2 className="w-4 h-4 text-zinc-500"/> {lead.cnpj}</div>
+                        <div className="flex gap-3 text-zinc-800"><Phone className="w-4 h-4 text-zinc-500"/> {lead.whatsapp}</div>
+                        {lead.email && <div className="flex gap-3 text-zinc-800"><Mail className="w-4 h-4 text-zinc-500"/> {lead.email}</div>}
+                        
+                        <div className="mt-4 pt-4 border-t border-black/5">
+                          <span className="inline-block bg-zinc-900 text-white text-xs px-3 py-1.5 rounded-md mb-2 font-semibold tracking-wide shadow-sm">{lead.produto}</span>
+                          {lead.descricao && <p className="text-sm text-zinc-700 bg-white/50 p-3 rounded-xl border border-black/5 italic">"{lead.descricao}"</p>}
+                        </div>
+
+                        {/* Botão de Validar Contato Rápido */}
+                        {lead.status === 'Novo' && (
+                          <div className="mt-4 pt-2">
+                            <button onClick={() => updateLeadStatus(lead.id, 'Em atendimento')} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-md transition-all flex justify-center items-center gap-2 hover:scale-[1.02] active:scale-95">
+                              <CheckCircle2 className="w-5 h-5" /> Entrei em Contato
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Campo de Observações Históricas */}
+                        <div className="mt-4 pt-4 border-t border-black/5">
+                          <label className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-2 flex items-center gap-1"><MessageSquare className="w-3 h-3" /> Observações da Equipa</label>
+                          <textarea 
+                            defaultValue={lead.adminNotes || ''} 
+                            onBlur={(e) => updateLeadNotes(lead.id, e.target.value)}
+                            placeholder="Adicione notas da chamada, histórico e próximos passos aqui..."
+                            className="w-full p-3 rounded-xl bg-white/60 border border-black/10 focus:bg-white focus:ring-2 focus:ring-zinc-900 text-sm resize-none shadow-inner placeholder-zinc-400"
+                            rows="3"
+                          ></textarea>
                         </div>
                       </div>
-                      <div className="mt-4 flex justify-end">
-                        <button onClick={() => deleteLead(lead.id)} className="text-zinc-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"><Trash2 className="w-4 h-4"/></button>
+
+                      <div className="mt-4 pt-4 border-t border-black/5 flex justify-end gap-2">
+                        {lead.status !== 'Arquivado' && (
+                          <button onClick={() => updateLeadStatus(lead.id, 'Arquivado')} className="text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60 px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-bold">
+                            <Archive className="w-4 h-4"/> Arquivar
+                          </button>
+                        )}
+                        <button onClick={() => deleteLead(lead.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"><Trash2 className="w-4 h-4"/></button>
                       </div>
                     </div>
-                  ))}
+                  )})}
                   {filteredLeads.length === 0 && <div className="col-span-full py-10 text-center text-zinc-400 text-sm">Nenhum lead encontrado.</div>}
                 </div>
               </div>
@@ -672,7 +725,12 @@
 
           const confirmDeleteProduct = async () => {
             if (!productToDelete) return;
-            try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', productToDelete)); } catch (e) {}
+            try { 
+              await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', productToDelete)); 
+            } catch (e) {
+              console.error("Erro ao apagar produto:", e);
+              alert("Erro ao remover produto. Verifique se tem permissões na base de dados (Firebase Rules).");
+            }
             setProductToDelete(null);
           };
 
