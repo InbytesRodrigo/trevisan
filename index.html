@@ -7,6 +7,18 @@
     
     <!-- Tailwind CSS (Estilos) -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Import Map para corrigir as referências do React (Resolve o erro do react/jsx-runtime) -->
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@18.2.0",
+            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+            "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
+            "lucide-react": "https://esm.sh/lucide-react@0.292.0"
+        }
+    }
+    </script>
     
     <!-- Babel (Para o navegador entender o React/JSX diretamente) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -42,13 +54,13 @@
 
     <!-- Script Principal React da Aplicação -->
     <script type="text/babel" data-type="module">
-        import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
-        import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+        import React, { useState, useEffect } from 'react';
+        import { createRoot } from 'react-dom/client';
         import { 
           Printer, Laptop, Receipt, Settings, Users, LogOut, 
           Search, Download, Trash2, Plus, CheckCircle2, X, Edit2,
           Smartphone, ChevronRight, Building2, User, Mail, Phone, MessageSquare, Image as ImageIcon, Palette, ShieldCheck, ArrowLeft, Check, Archive
-        } from 'https://esm.sh/lucide-react@0.292.0';
+        } from 'lucide-react';
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
         import { 
