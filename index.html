@@ -54,13 +54,13 @@
 
     <!-- Script Principal React da Aplicação -->
     <script type="text/babel" data-type="module">
-        import React, { useState, useEffect } from 'react';
-        import { createRoot } from 'react-dom/client';
+        import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
+        import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
         import { 
           Printer, Laptop, Receipt, Settings, Users, LogOut, 
           Search, Download, Trash2, Plus, CheckCircle2, X, Edit2,
-          Smartphone, ChevronRight, Building2, User, Mail, Phone, MessageSquare, Image as ImageIcon, Palette, ShieldCheck, ArrowLeft, Check, Archive
-        } from 'lucide-react';
+          Smartphone, ChevronRight, Building2, User, Mail, Phone, MessageSquare, Image as ImageIcon, Palette, ShieldCheck, ArrowLeft, Check, Archive, Target
+        } from 'https://esm.sh/lucide-react@0.292.0';
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
         import { 
@@ -101,7 +101,8 @@
           logoUrl: '', 
           primaryColor: '#6200ea',
           headerBgColor: '#ffffff',
-          headerTextColor: '#18181b'
+          headerTextColor: '#18181b',
+          googleAdsId: ''
         };
 
         const DEFAULT_PRODUCTS = [
@@ -170,6 +171,33 @@
             return () => { unsubSettings(); unsubProducts(); unsubLeads(); };
           }, [user]);
 
+          // Injetor Automático das Tags do Google Ads
+          useEffect(() => {
+            if (!settings.googleAdsId) return;
+
+            // Remove tags antigas caso o ID seja atualizado
+            const existingScript = document.getElementById('google-ads-script');
+            if (existingScript) existingScript.remove();
+            const existingInline = document.getElementById('google-ads-inline-script');
+            if (existingInline) existingInline.remove();
+
+            const script1 = document.createElement('script');
+            script1.id = 'google-ads-script';
+            script1.async = true;
+            script1.src = `https://www.googletagmanager.com/gtag/js?id=${settings.googleAdsId}`;
+            document.head.appendChild(script1);
+
+            const script2 = document.createElement('script');
+            script2.id = 'google-ads-inline-script';
+            script2.innerHTML = `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${settings.googleAdsId}');
+            `;
+            document.head.appendChild(script2);
+          }, [settings.googleAdsId]);
+
           const saveLead = async (leadData) => {
             if (!user) return false;
             try {
@@ -222,6 +250,14 @@
             setIsSubmitting(true);
             const success = await saveLead(formData);
             if (success) {
+              // Dispara evento de conversão para o Google Ads
+              if (typeof window.gtag === 'function') {
+                window.gtag('event', 'generate_lead', {
+                  currency: 'BRL',
+                  value: 1
+                });
+              }
+
               setStep(5);
               setTimeout(() => {
                 const msg = `Olá, tenho interesse em locação de equipamentos.%0A%0A*Nome:* ${formData.nome}%0A*WhatsApp:* ${formData.whatsapp}%0A*Empresa/CNPJ:* ${formData.cnpj}%0A*E-mail:* ${formData.email}%0A*Interesse:* ${formData.produto}%0A*Detalhes:* ${formData.descricao}`;
@@ -932,6 +968,18 @@
                     </div>
                   ))}
                   {products.length === 0 && <div className="col-span-full text-center text-zinc-400 py-10 border-2 border-dashed border-zinc-200 rounded-3xl">Nenhum produto cadastrado no momento.</div>}
+                </div>
+              </div>
+
+              {/* BLOCO DE MARKETING E GOOGLE ADS */}
+              <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-zinc-200 mt-8">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-bold text-zinc-900 tracking-tight flex items-center gap-3"><Target className="w-6 h-6 text-zinc-400"/> Integrações e Marketing</h3>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-zinc-900 mb-2">ID do Google Ads / Analytics (Opcional)</label>
+                  <p className="text-xs text-zinc-500 mb-4 font-medium">Insira o seu ID de medição para acompanhar tráfego e conversões de leads. (ex: <span className="font-mono">AW-123456789</span> ou <span className="font-mono">G-ABC123XYZ</span>).</p>
+                  <input type="text" name="googleAdsId" value={localSettings.googleAdsId || ''} onChange={handleSettingChange} className="w-full md:w-1/2 px-4 py-3 rounded-xl border border-zinc-200 text-sm focus:ring-2 focus:ring-zinc-900" placeholder="AW-000000000" />
                 </div>
               </div>
 
