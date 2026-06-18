@@ -8,7 +8,7 @@
     <!-- Tailwind CSS (Estilos) -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Import Map para corrigir as referências do React (Resolve o erro do react/jsx-runtime) -->
+    <!-- Import Map para corrigir as referências do React -->
     <script type="importmap">
     {
         "imports": {
@@ -54,13 +54,13 @@
 
     <!-- Script Principal React da Aplicação -->
     <script type="text/babel" data-type="module">
-        import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
-        import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+        import React, { useState, useEffect } from 'react';
+        import { createRoot } from 'react-dom/client';
         import { 
           Printer, Laptop, Receipt, Settings, Users, LogOut, 
           Search, Download, Trash2, Plus, CheckCircle2, X, Edit2,
           Smartphone, ChevronRight, Building2, User, Mail, Phone, MessageSquare, Image as ImageIcon, Palette, ShieldCheck, ArrowLeft, Check, Archive, Target
-        } from 'https://esm.sh/lucide-react@0.292.0';
+        } from 'lucide-react';
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
         import { 
@@ -68,7 +68,6 @@
           doc, updateDoc, deleteDoc, setDoc 
         } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-        // --- INICIALIZAÇÃO FIREBASE ---
         const meuFirebaseConfig = {
           apiKey: "AIzaSyDA2jcKD1cLvpnqobRSyYh0stvrBjcMMcs",
           authDomain: "trevisan-54c36.firebaseapp.com",
@@ -102,7 +101,7 @@
           primaryColor: '#6200ea',
           headerBgColor: '#ffffff',
           headerTextColor: '#18181b',
-          googleAdsId: ''
+          googleTagSnippet: '' // Novo campo para o Google Ads
         };
 
         const DEFAULT_PRODUCTS = [
@@ -110,6 +109,9 @@
           { id: '2', name: 'Impressoras e Multifuncionais', desc: 'Reduza custos com outsourcing de impressão.', imageUrl: 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' },
           { id: '3', name: 'Smartphones Corporativos', desc: 'Comunicação e mobilidade para a sua equipa de vendas.', imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' }
         ];
+
+        // Placeholder seguro contra erros do parser do HTML/Babel
+        const GOOGLE_TAG_PLACEHOLDER = `<!-- Google tag (gtag.js) -->\n\x3Cscript async src="https://www.googletagmanager.com/gtag/js?id=AW-XXXXXX">\x3C/script>\n\x3Cscript>\n  window.dataLayer = window.dataLayer || [];\n  function gtag(){dataLayer.push(arguments);}\n  gtag('js', new Date());\n  gtag('config', 'AW-XXXXXX');\n\x3C/script>`;
 
         function App() {
           const [user, setUser] = useState(null);
@@ -120,6 +122,28 @@
           const [settings, setSettings] = useState(DEFAULT_SETTINGS);
           const [products, setProducts] = useState([]);
           const [leads, setLeads] = useState([]);
+
+          // --- INJETOR AUTOMÁTICO DA TAG DO GOOGLE ---
+          useEffect(() => {
+            if (!settings.googleTagSnippet) return;
+
+            // Remove scripts injetados anteriormente para evitar duplicação se você editar a tag
+            document.querySelectorAll('.injected-google-tag').forEach(e => e.remove());
+
+            // Processa o texto colado e converte em elementos reais de script no cabeçalho
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = settings.googleTagSnippet.trim();
+
+            Array.from(tempDiv.childNodes).forEach(node => {
+              if (node.tagName === 'SCRIPT') {
+                const script = document.createElement('script');
+                script.className = 'injected-google-tag';
+                Array.from(node.attributes).forEach(attr => script.setAttribute(attr.name, attr.value));
+                script.textContent = node.textContent; // Mais seguro do que innerHTML para scripts
+                document.head.appendChild(script);
+              }
+            });
+          }, [settings.googleTagSnippet]);
 
           useEffect(() => {
             const initAuth = async () => {
@@ -151,12 +175,11 @@
             const unsubProducts = onSnapshot(productsRef, (snapshot) => {
               if (snapshot.empty && products.length === 0) {
                 DEFAULT_PRODUCTS.forEach(p => {
-                  const { id, ...prodData } = p; // Remove o ID fixo antes de adicionar ao Firebase
+                  const { id, ...prodData } = p;
                   addDoc(productsRef, prodData).catch(console.error);
                 });
               } else {
                 const prods = [];
-                // Assegura que o ID gerado pelo Firebase é o único associado ao produto
                 snapshot.forEach(doc => prods.push({ ...doc.data(), id: doc.id }));
                 setProducts(prods);
               }
@@ -170,33 +193,6 @@
 
             return () => { unsubSettings(); unsubProducts(); unsubLeads(); };
           }, [user]);
-
-          // Injetor Automático das Tags do Google Ads
-          useEffect(() => {
-            if (!settings.googleAdsId) return;
-
-            // Remove tags antigas caso o ID seja atualizado
-            const existingScript = document.getElementById('google-ads-script');
-            if (existingScript) existingScript.remove();
-            const existingInline = document.getElementById('google-ads-inline-script');
-            if (existingInline) existingInline.remove();
-
-            const script1 = document.createElement('script');
-            script1.id = 'google-ads-script';
-            script1.async = true;
-            script1.src = `https://www.googletagmanager.com/gtag/js?id=${settings.googleAdsId}`;
-            document.head.appendChild(script1);
-
-            const script2 = document.createElement('script');
-            script2.id = 'google-ads-inline-script';
-            script2.innerHTML = `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', '${settings.googleAdsId}');
-            `;
-            document.head.appendChild(script2);
-          }, [settings.googleAdsId]);
 
           const saveLead = async (leadData) => {
             if (!user) return false;
@@ -250,6 +246,7 @@
             setIsSubmitting(true);
             const success = await saveLead(formData);
             if (success) {
+              
               // Dispara evento de conversão para o Google Ads
               if (typeof window.gtag === 'function') {
                 window.gtag('event', 'generate_lead', {
@@ -971,15 +968,22 @@
                 </div>
               </div>
 
-              {/* BLOCO DE MARKETING E GOOGLE ADS */}
+              {/* BLOCO DE INTEGRAÇÃO DO GOOGLE ADS */}
               <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-zinc-200 mt-8">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-xl font-bold text-zinc-900 tracking-tight flex items-center gap-3"><Target className="w-6 h-6 text-zinc-400"/> Integrações e Marketing</h3>
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-zinc-900 mb-2">ID do Google Ads / Analytics (Opcional)</label>
-                  <p className="text-xs text-zinc-500 mb-4 font-medium">Insira o seu ID de medição para acompanhar tráfego e conversões de leads. (ex: <span className="font-mono">AW-123456789</span> ou <span className="font-mono">G-ABC123XYZ</span>).</p>
-                  <input type="text" name="googleAdsId" value={localSettings.googleAdsId || ''} onChange={handleSettingChange} className="w-full md:w-1/2 px-4 py-3 rounded-xl border border-zinc-200 text-sm focus:ring-2 focus:ring-zinc-900" placeholder="AW-000000000" />
+                  <label className="block text-sm font-bold text-zinc-900 mb-2">Instalar Tag do Google (gtag.js)</label>
+                  <p className="text-xs text-zinc-500 mb-4 font-medium">Copie a tag completa recomendada pelo Google (com os blocos &lt;script&gt;...&lt;/script&gt;) e cole na caixa abaixo. O sistema rastreará automaticamente as conversões.</p>
+                  <textarea 
+                    name="googleTagSnippet" 
+                    value={localSettings.googleTagSnippet || ''} 
+                    onChange={handleSettingChange} 
+                    rows="6" 
+                    className="w-full px-5 py-4 rounded-xl border border-zinc-200 text-sm focus:ring-2 focus:ring-zinc-900 font-mono text-zinc-600 bg-zinc-50 shadow-inner" 
+                    placeholder={GOOGLE_TAG_PLACEHOLDER}
+                  ></textarea>
                 </div>
               </div>
 
