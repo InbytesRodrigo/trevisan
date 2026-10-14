@@ -1,0 +1,14 @@
+{
+  "name": "grupotrevisan-netlify",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix frontend run build && node scripts/prepare-netlify.cjs"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^11.1.4",
+    "@netlify/database": "^2.0.1",
+    "bcryptjs": "^3.0.3",
+    "jsonwebtoken": "^9.0.3",
+    "uuid": "^14.0.3"
+  }
+}

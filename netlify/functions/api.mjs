@@ -1,0 +1,258 @@
+import { randomUUID } from 'node:crypto';
+import { getStore } from '@netlify/blobs';
+import seo from '../../backend/seo.js';
+import { addUser, changeAdminCredentials, currentUser, login, publicUser } from '../lib/auth.mjs';
+import { defaultSettings, deleteDocument, getCatalog, getDocument, getSingleton, listDocuments, putDocument, putSingleton } from '../lib/store.mjs';
+
+const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
+const fail = (message, status = 400) => json({ error: message }, status);
+const cleanPath = (url) => {
+  const path = new URL(url).pathname;
+  return path.replace(/^\/(?:\.netlify\/functions\/api\/|api\/)/, '/');
+};
+const textResponse = (value, type = 'text/plain', status = 200) => new Response(value, { status, headers: { 'content-type': `${type}; charset=utf-8`, 'cache-control': 'no-store' } });
+const getBody = async (request) => {
+  try { return await request.json(); } catch { return {}; }
+};
+const safeId = (value) => String(value || '').slice(0, 100);
+
+async function permission(request, role = 'seller') {
+  const user = await currentUser(request);
+  if (!user) return { error: fail('Nao autenticado', 401) };
+  if (role === 'admin' && user.role !== 'admin') return { error: fail('Acesso negado', 403) };
+  return { user };
+}
+
+function chatStatus(chat) {
+  if (chat.status === 'closed' || chat.status === 'new') return chat.status;
+  const age = Date.now() - (chat.lastVisitorAt || chat.lastMessageAt || chat.createdAt);
+  if (chat.unreadSeller > 0 && age > 600000) return 'overdue';
+  if (chat.unreadSeller > 0) return 'waiting';
+  return 'open';
+}
+
+function exposeChat(chat) {
+  if (!chat) return chat;
+  const { visitorKey, ...rest } = chat;
+  return { ...rest, computedStatus: chatStatus(chat) };
+}
+
+export default async function handler(request) {
+  try {
+    const method = request.method;
+    const path = cleanPath(request.url);
+    const url = new URL(request.url);
+    const parts = path.split('/').filter(Boolean);
+
+    if (method === 'GET' && path === '/health') return json({ ok: true, storage: 'netlify-database' });
+
+    if (method === 'GET' && path === '/settings') {
+      return json({ ...defaultSettings(), ...await getSingleton('settings') });
+    }
+    if (method === 'PUT' && path === '/settings') {
+      const { user, error } = await permission(request, 'admin'); if (error) return error;
+      const current = await getSingleton('settings');
+      const body = await getBody(request);
+      const next = { ...current, ...body };
+      await putSingleton('settings', next);
+      return json(next);
+    }
+
+    if (method === 'GET' && path === '/catalog-products') return json(await getCatalog());
+    if (parts[0] === 'catalog-products' && ((method === 'POST' && parts.length === 1) || (method === 'PUT' && parts.length === 2))) {
+      const { error } = await permission(request, 'admin'); if (error) return error;
+      const body = await getBody(request);
+      if (!String(body.name || '').trim()) return fail('Informe o nome do produto');
+      if (method === 'POST' && parts.length === 1) {
+        await getCatalog();
+        const item = { ...body, id: randomUUID(), createdAt: Date.now(), active: body.active !== false };
+        await putDocument('catalog-products', item.id, item);
+        return json(item);
+      }
+      if (method === 'PUT' && parts.length === 2) {
+        const id = safeId(parts[1]);
+        const current = await getDocument('catalog-products', id);
+        if (!current) return fail('Produto nao encontrado', 404);
+        const next = { ...current, ...body, id: current.id };
+        await putDocument('catalog-products', id, next);
+        return json(next);
+      }
+    }
+    if (method === 'POST' && parts[0] === 'catalog-products' && parts[2] === 'delete') {
+      const { error } = await permission(request, 'admin'); if (error) return error;
+      return json({ ok: await deleteDocument('catalog-products', safeId(parts[1])) });
+    }
+
+    for (const collection of ['products', 'solutions', 'segments']) {
+      if (method === 'GET' && path === `/${collection}`) return json(await getSingleton(collection));
+      if (collection === 'solutions' && method === 'PUT' && path === '/solutions') {
+        const { error } = await permission(request, 'admin'); if (error) return error;
+        const body = await getBody(request);
+        if (!Array.isArray(body)) return fail('Lista invalida');
+        await putSingleton('solutions', body);
+        return json(body);
+      }
+    }
+    if (parts[0] === 'products' && ['POST', 'PUT'].includes(method)) {
+      const { error } = await permission(request, 'admin'); if (error) return error;
+      const body = await getBody(request);
+      const products = await getSingleton('products');
+      if (method === 'POST' && parts.length === 1) {
+        const item = { id: randomUUID(), ...body };
+        await putSingleton('products', [...products, item]); return json(item);
+      }
+      if (method === 'PUT' && parts.length === 2) {
+        const index = products.findIndex((item) => String(item.id) === parts[1]);
+        if (index < 0) return fail('Produto nao encontrado', 404);
+        products[index] = { ...products[index], ...body, id: products[index].id };
+        await putSingleton('products', products); return json(products[index]);
+      }
+    }
+    if (method === 'POST' && parts[0] === 'products' && parts[2] === 'delete') {
+      const { error } = await permission(request, 'admin'); if (error) return error;
+      const items = await getSingleton('products');
+      await putSingleton('products', items.filter((item) => String(item.id) !== parts[1]));
+      return json({ ok: true });
+    }
+
+    if (method === 'GET' && path === '/seo-tags') {
+      const settings = { ...defaultSettings(), ...await getSingleton('settings') };
+      return new Response(seo.renderSeoTags(url.searchParams.get('path') || '/', settings, await getCatalog()), {
+        headers: { 'content-type': 'text/html; charset=utf-8', 'x-robots-tag': 'noindex', 'cache-control': 'no-store' },
+      });
+    }
+    if (method === 'GET' && path === '/robots.txt') {
+      const settings = { ...defaultSettings(), ...await getSingleton('settings') };
+      const base = seo.siteBase(settings.siteUrl);
+      const lines = ['User-agent: *', 'Allow: /'];
+      if (base && settings.seoIndexing !== false) lines.push(`Sitemap: ${base}/sitemap.xml`);
+      return textResponse(`${lines.join('\n')}\n`);
+    }
+    if (method === 'GET' && path === '/sitemap.xml') {
+      const settings = { ...defaultSettings(), ...await getSingleton('settings') };
+      const base = seo.siteBase(settings.siteUrl);
+      if (!base || settings.seoIndexing === false) return textResponse('Configure a URL oficial e ative a indexacao no painel.', 'text/plain', 404);
+      const products = (await getCatalog()).filter((item) => item.active !== false);
+      const urls = [`${base}/`, `${base}/equipamentos`, ...products.map((item) => `${base}/equipamentos/${encodeURIComponent(item.id)}`)];
+      return textResponse(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map((item) => `<url><loc>${seo.escapeHtml(item)}</loc></url>`).join('')}</urlset>`, 'application/xml');
+    }
+
+    if (method === 'POST' && path === '/auth/login') {
+      const body = await getBody(request);
+      const result = await login(body.email, body.password);
+      return result ? json(result) : fail('Email ou senha invalidos', 401);
+    }
+    if (method === 'GET' && path === '/auth/me') {
+      const { user, error } = await permission(request); return error || json(publicUser(user));
+    }
+    if (method === 'POST' && path === '/auth/admin-credentials') {
+      const { error } = await permission(request, 'admin'); if (error) return error;
+      try { return json(await changeAdminCredentials(await getBody(request))); }
+      catch (cause) { return fail(cause.message); }
+    }
+    if (method === 'GET' && path === '/users') {
+      const { error } = await permission(request, 'admin'); if (error) return error;
+      const users = (await listDocuments('users')).map(publicUser);
+      const admin = await getDocument('admin-auth', 'primary');
+      if (admin?.email || process.env.ADMIN_EMAIL) users.unshift({ id: 'admin-env', name: 'Administrador', email: admin?.email || process.env.ADMIN_EMAIL, role: 'admin' });
+      return json(users);
+    }
+    if (method === 'POST' && path === '/users') {
+      const { error } = await permission(request, 'admin'); if (error) return error;
+      try { return json(await addUser(await getBody(request))); }
+      catch (cause) { return fail(cause.message); }
+    }
+
+    if (method === 'GET' && path === '/files') {
+      const { error } = await permission(request); if (error) return error;
+      return json(await listDocuments('files'));
+    }
+    if (method === 'POST' && path === '/upload') {
+      const { error } = await permission(request); if (error) return error;
+      const form = await request.formData();
+      const file = form.get('file');
+      if (!file || !file.name || file.size > 20 * 1024 * 1024) return fail('Arquivo obrigatorio ou maior que 20 MB');
+      const allowed = /^(image\/(png|jpeg|webp|gif|x-icon|svg\+xml)|application\/pdf)$/;
+      if (!allowed.test(file.type)) return fail('Tipo de arquivo nao permitido');
+      const filename = `${randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-100)}`;
+      await getStore('site-uploads').set(filename, file, { metadata: { contentType: file.type } });
+      const item = { id: randomUUID(), originalName: file.name, filename, url: `/uploads/${filename}`, mimetype: file.type, size: file.size, type: String(form.get('type') || 'file'), createdAt: Date.now() };
+      await putDocument('files', item.id, item);
+      return json(item);
+    }
+    if (method === 'POST' && parts[0] === 'files' && parts[2] === 'delete') {
+      const { error } = await permission(request, 'admin'); if (error) return error;
+      const item = await getDocument('files', safeId(parts[1]));
+      if (!item) return fail('Arquivo nao encontrado', 404);
+      await getStore('site-uploads').delete(item.filename);
+      await deleteDocument('files', item.id);
+      return json({ ok: true });
+    }
+
+    if (method === 'GET' && path === '/leads') {
+      const { error } = await permission(request); if (error) return error;
+      return json(await listDocuments('leads'));
+    }
+    if (method === 'POST' && path === '/leads') {
+      const body = await getBody(request);
+      const item = { id: randomUUID(), ...body, createdAt: Date.now() };
+      await putDocument('leads', item.id, item); return json(item);
+    }
+
+    if (method === 'GET' && path === '/chats') {
+      const { error } = await permission(request); if (error) return error;
+      return json((await listDocuments('chats')).map(exposeChat).sort((a, b) => b.lastMessageAt - a.lastMessageAt));
+    }
+    if (method === 'POST' && path === '/chats') {
+      const body = await getBody(request);
+      const now = Date.now();
+      const chat = { id: randomUUID(), visitorKey: randomUUID(), visitorName: String(body.visitorName || 'Visitante').slice(0, 100), visitorPhone: '', visitorEmail: '', status: 'new', assignedTo: null, assignedName: null, lastMessage: '', lastMessageAt: now, createdAt: now, unreadSeller: 0, unreadVisitor: 0 };
+      await putDocument('chats', chat.id, chat);
+      return json({ ...exposeChat(chat), visitorKey: chat.visitorKey });
+    }
+    if (parts[0] === 'chats' && parts[1]) {
+      const chat = await getDocument('chats', safeId(parts[1]));
+      if (!chat) return fail('Chat nao encontrado', 404);
+      const user = await currentUser(request);
+      const visitorKey = request.headers.get('x-visitor-key') || url.searchParams.get('key');
+      if (!user && visitorKey !== chat.visitorKey) return fail('Acesso negado', 403);
+      if (method === 'GET' && parts[2] === 'messages') {
+        return json((await listDocuments('messages')).filter((item) => item.chatId === chat.id).sort((a, b) => a.createdAt - b.createdAt));
+      }
+      if (method === 'POST' && parts[2] === 'messages') {
+        const body = await getBody(request);
+        const value = String(body.text || '').trim().slice(0, 4000);
+        if (!value) return fail('Mensagem vazia');
+        const automated = Boolean(body.automated) && !user;
+        const from = user || automated ? 'seller' : 'visitor';
+        const message = { id: randomUUID(), chatId: chat.id, text: value, from, automated, senderName: user?.name || String(body.senderName || chat.visitorName).slice(0, 100), createdAt: Date.now() };
+        await putDocument('messages', message.id, message);
+        chat.lastMessage = value; chat.lastMessageAt = message.createdAt;
+        if (from === 'visitor') {
+          for (const field of ['visitorName', 'visitorPhone', 'visitorEmail']) if (body[field]) chat[field] = String(body[field]).slice(0, 150);
+          chat.lastVisitorAt = message.createdAt; chat.unreadSeller += 1;
+          if (chat.status === 'closed') chat.status = 'open';
+        } else if (!message.automated) {
+          chat.unreadSeller = 0; chat.unreadVisitor += 1; chat.status = 'open';
+        }
+        await putDocument('chats', chat.id, chat);
+        return json(message);
+      }
+      if (method === 'POST' && parts[2] === 'read') {
+        if (user) chat.unreadSeller = 0; else chat.unreadVisitor = 0;
+        await putDocument('chats', chat.id, chat); return json(exposeChat(chat));
+      }
+      if (method === 'POST' && ['assign', 'close'].includes(parts[2])) {
+        if (!user) return fail('Acesso negado', 403);
+        if (parts[2] === 'close') chat.status = 'closed';
+        else { chat.status = 'open'; chat.assignedTo = user.id; chat.assignedName = user.name; }
+        await putDocument('chats', chat.id, chat); return json(exposeChat(chat));
+      }
+    }
+
+    return fail('Rota nao encontrada', 404);
+  } catch (error) {
+    console.error('API error', error);
+    return fail('Erro interno. Tente novamente.', 500);
+  }
+}

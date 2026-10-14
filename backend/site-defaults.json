@@ -1,0 +1,173 @@
+{
+  "settings": {
+    "brandName": "GrupoTrevisan",
+    "tagline": "Outsourcing de Equipamentos de TI para Empresas",
+    "heroTitle": "Ha 25 anos, lider em outsourcing de equipamentos de TI",
+    "heroSubtitle": "Quem tem a estrutura certa, navega com mais tranquilidade. O GrupoTrevisan e o parceiro de outsourcing de equipamentos ideal para a sua operacao.",
+    "heroCta": "Conte com nossas solucoes",
+    "heroImage": "/img/hero.jpg",
+    "logo": "",
+    "logoWhite": "",
+    "footerLogo": "",
+    "favicon": "/favicon.png",
+    "siteUrl": "https://trevisansolucoes.netlify.app",
+    "seoHomeTitle": "GrupoTrevisan | Outsourcing de Equipamentos de TI",
+    "seoHomeDescription": "Soluções em impressoras, multifuncionais e equipamentos de TI para empresas, com suporte e gestão.",
+    "seoCatalogTitle": "Equipamentos para Empresas | GrupoTrevisan",
+    "seoCatalogDescription": "Conheça impressoras, multifuncionais, scanners e outros equipamentos para sua empresa.",
+    "seoImage": "/img/hero.jpg",
+    "googleSiteVerification": "",
+    "seoIndexing": true,
+    "phone": "(11) 2103-9753",
+    "whatsapp": "5511999999999",
+    "email": "",
+    "address": "Rua Robert Bosch, 544 - Sao Paulo, SP",
+    "footerText": "GrupoTrevisan. Todos os Direitos Reservados.",
+    "chatEnabled": true,
+    "chatAutoOpen": true,
+    "chatOpenDelay": 10,
+    "chatAgentName": "Mariana",
+    "chatAgentRole": "Atendimento",
+    "chatAgentPhoto": "/img/agent.jpg",
+    "chatSound": true,
+    "chatFlow": [
+      {
+        "id": "f1",
+        "text": "Oi, esta visitando nosso site",
+        "waitFor": "none",
+        "typingMs": 1400
+      },
+      {
+        "id": "f2",
+        "text": "Como vc se chama?",
+        "waitFor": "name",
+        "typingMs": 1100
+      },
+      {
+        "id": "f3",
+        "text": "Prazer, {name}! Em que posso te ajudar hoje?",
+        "waitFor": "any",
+        "typingMs": 1600
+      },
+      {
+        "id": "f4",
+        "text": "Show. Vou te conectar com um especialista agora, so um instante.",
+        "waitFor": "none",
+        "typingMs": 1300
+      }
+    ]
+  },
+  "products": [
+    {
+      "id": "p1",
+      "name": "Notebook Empresarial 14\"",
+      "category": "Notebooks e Desktops",
+      "description": "Alta performance para backoffice, pontos de venda e home office.",
+      "image": "/img/notebook.jpg",
+      "featured": true,
+      "price": "Sob consulta"
+    },
+    {
+      "id": "p2",
+      "name": "Multifuncional Laser Color",
+      "category": "Impressoras e Multifuncionais",
+      "description": "Agilidade e controle para imprimir, digitalizar e gerenciar documentos.",
+      "image": "/img/printer.jpg",
+      "featured": true,
+      "price": "Sob consulta"
+    },
+    {
+      "id": "p3",
+      "name": "Smartphone Corporativo",
+      "category": "Smartphones e Tablets",
+      "description": "Mobilidade e seguranca para equipes de campo e atendimento.",
+      "image": "/img/phone.jpg",
+      "featured": true,
+      "price": "Sob consulta"
+    },
+    {
+      "id": "p4",
+      "name": "Coletor de Dados Robusto",
+      "category": "Automacao",
+      "description": "Rastreabilidade em tempo real mesmo em ambientes criticos.",
+      "image": "/img/scanner.jpg",
+      "featured": true,
+      "price": "Sob consulta"
+    }
+  ],
+  "solutions": [
+    {
+      "id": "s1",
+      "title": "Impressoras e Multifuncionais",
+      "subtitle": "NexPrinter",
+      "description": "Agilidade e controle para imprimir, digitalizar e gerenciar documentos, com toda seguranca e protecao de dados.",
+      "color": "#0065ff"
+    },
+    {
+      "id": "s2",
+      "title": "Smartphones e Tablets",
+      "subtitle": "NexMobile",
+      "description": "Conecte sua equipe com a locacao de smartphones e tablets configurados para o seu negocio.",
+      "color": "#00c5ff"
+    },
+    {
+      "id": "s3",
+      "title": "Notebooks e Desktops",
+      "subtitle": "NexPC",
+      "description": "Solucao de locacao de notebooks e computadores, com todo suporte para otimizar os processos.",
+      "color": "#7100bb"
+    },
+    {
+      "id": "s4",
+      "title": "Impressoras Termicas e Coletores",
+      "subtitle": "NexAutomation",
+      "description": "Equipamentos robustos para facilitar o acesso as informacoes em qualquer ambiente.",
+      "color": "#d000bb"
+    },
+    {
+      "id": "s5",
+      "title": "Videoconferencia e Telas",
+      "subtitle": "NexMeeting",
+      "description": "Solucoes para salas de reuniao com equipamentos, gestao e servicos conectados.",
+      "color": "#4e4eea"
+    }
+  ],
+  "segments": [
+    {
+      "id": "g1",
+      "title": "Logistica",
+      "image": "/img/logistica.jpg",
+      "description": "Do backoffice a entrega, passando pelo warehouse e o carregamento, automatize seus processos logisticos."
+    },
+    {
+      "id": "g2",
+      "title": "Educacao",
+      "image": "/img/educacao.jpg",
+      "description": "Modernize seu campus com equipamentos pensados para o ambiente educacional."
+    },
+    {
+      "id": "g3",
+      "title": "Saude",
+      "image": "/img/saude.jpg",
+      "description": "Tecnologia completa para clinicas, hospitais e laboratorios, da equipe medica ao backoffice."
+    },
+    {
+      "id": "g4",
+      "title": "Varejo",
+      "image": "/img/varejo.jpg",
+      "description": "Mais autonomia aos clientes e produtividade no ponto de vendas com processos automatizados."
+    },
+    {
+      "id": "g5",
+      "title": "Industria",
+      "image": "/img/industria.jpg",
+      "description": "Transforme as etapas de producao do backoffice ao recebimento e expedicao."
+    },
+    {
+      "id": "g6",
+      "title": "Governo",
+      "image": "/img/governo.jpg",
+      "description": "Atendimento as demandas mais complexas com outsourcing para instituicoes publicas."
+    }
+  ]
+}
