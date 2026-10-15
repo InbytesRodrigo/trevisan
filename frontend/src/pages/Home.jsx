@@ -70,7 +70,7 @@ export default function Home() {
       <div className="toolbar">
         <div className="toolbar-inner">
           <a href="#contato">Fale conosco</a>
-          <a href={`tel:${(s.phone || '').replace(/\D/g, '')}`}>{s.phone || '(11) 2103-9753'}</a>
+          <a href={`tel:${(s.phone || '(11) 99510-6569').replace(/\D/g, '')}`}>{s.phone || '(11) 99510-6569'}</a>
           <div className="socials">
             <a href="#" aria-label="LinkedIn">in</a>
             <a href="#" aria-label="Instagram">ig</a>
@@ -288,7 +288,7 @@ export default function Home() {
 
       <a
         className="float-wa"
-        href={`https://wa.me/${s.whatsapp || '5511999999999'}`}
+        href={`https://wa.me/${s.whatsapp || '5511995106569'}`}
         target="_blank"
         rel="noreferrer"
         aria-label="WhatsApp"
