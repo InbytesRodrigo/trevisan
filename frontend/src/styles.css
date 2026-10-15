@@ -216,7 +216,7 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); line-height: 1.25; le
 /* Solutions strip */
 .solutions {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: -70px;
   position: relative;
   z-index: 2;
@@ -377,15 +377,19 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); line-height: 1.25; le
   width: 58px; height: 58px; border-radius: 50%;
   display: grid; place-items: center; border: 0; cursor: pointer;
   box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  transition: transform .2s ease, box-shadow .2s ease;
 }
-.float-wa { bottom: 92px; background: var(--wa-green); color: #fff; font-size: 28px; }
-.float-chat { bottom: 22px; background: var(--navy); color: #fff; font-size: 13px; font-weight: 800; }
-.float-chat small { font-size: 10px; display: block; line-height: 1; }
+.float-wa { bottom: 92px; background: #25d366; color: #fff; }
+.float-chat { bottom: 22px; background: var(--navy); color: #fff; }
+.float-wa svg { width: 31px; height: 31px; }
+.float-chat svg { width: 30px; height: 30px; }
+.float-wa:hover, .float-chat:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(0,0,0,.28); }
+.float-wa:focus-visible, .float-chat:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 .float-chat { animation: pulse 1.8s ease-in-out infinite; }
 @keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, .55); }
-  70% { box-shadow: 0 0 0 16px rgba(37, 211, 102, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(11, 10, 74, .35); }
+  70% { box-shadow: 0 0 0 14px rgba(11, 10, 74, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(11, 10, 74, 0); }
 }
 
 /* Widget chat */

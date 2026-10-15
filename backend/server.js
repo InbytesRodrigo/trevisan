@@ -50,7 +50,7 @@ const defaultChatFlow = [
 const defaultSettings = {
   brandName: 'GrupoTrevisan',
   tagline: 'Outsourcing de Equipamentos de TI para Empresas',
-  heroTitle: 'Ha 25 anos, lider em outsourcing de equipamentos de TI',
+  heroTitle: 'Há 10 anos, líder em outsourcing de equipamentos de TI',
   heroSubtitle:
     'Quem tem a estrutura certa, navega com mais tranquilidade. O GrupoTrevisan e o parceiro de outsourcing de equipamentos ideal para a sua operacao.',
   heroCta: 'Conte com nossas solucoes',
@@ -133,7 +133,7 @@ const defaultSolutions = [
   {
     id: 's1',
     title: 'Impressoras e Multifuncionais',
-    subtitle: 'NexPrinter',
+    subtitle: 'TreviPrinter',
     description:
       'Agilidade e controle para imprimir, digitalizar e gerenciar documentos, com toda seguranca e protecao de dados.',
     color: '#0065ff',
@@ -141,7 +141,7 @@ const defaultSolutions = [
   {
     id: 's2',
     title: 'Smartphones e Tablets',
-    subtitle: 'NexMobile',
+    subtitle: 'TreviMobile',
     description:
       'Conecte sua equipe com a locacao de smartphones e tablets configurados para o seu negocio.',
     color: '#00c5ff',
@@ -149,7 +149,7 @@ const defaultSolutions = [
   {
     id: 's3',
     title: 'Notebooks e Desktops',
-    subtitle: 'NexPC',
+    subtitle: 'TreviPC',
     description:
       'Solucao de locacao de notebooks e computadores, com todo suporte para otimizar os processos.',
     color: '#7100bb',
@@ -157,18 +157,10 @@ const defaultSolutions = [
   {
     id: 's4',
     title: 'Impressoras Termicas e Coletores',
-    subtitle: 'NexAutomation',
+    subtitle: 'TreviAutomation',
     description:
       'Equipamentos robustos para facilitar o acesso as informacoes em qualquer ambiente.',
     color: '#d000bb',
-  },
-  {
-    id: 's5',
-    title: 'Videoconferencia e Telas',
-    subtitle: 'NexMeeting',
-    description:
-      'Solucoes para salas de reuniao com equipamentos, gestao e servicos conectados.',
-    color: '#4e4eea',
   },
 ];
 

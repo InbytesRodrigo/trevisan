@@ -133,7 +133,7 @@ export default function Home() {
 
       <section className="hero" style={heroStyle}>
         <div className="container hero-content">
-          <h1>{s.heroTitle || 'Ha 25 anos, lider em outsourcing de equipamentos de TI'}</h1>
+          <h1>{s.heroTitle || 'Há 10 anos, líder em outsourcing de equipamentos de TI'}</h1>
           <p>{s.heroSubtitle}</p>
           <a className="btn-cta" href="#contato">
             {s.heroCta || 'Conte com nossas solucoes'}
@@ -293,10 +293,17 @@ export default function Home() {
         rel="noreferrer"
         aria-label="WhatsApp"
       >
-        WA
+        <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true" focusable="false">
+          <path d="M16 .8A15.1 15.1 0 0 0 3 23.6L.9 31l7.6-2A15.2 15.2 0 1 0 16 .8Zm0 27.6a12.4 12.4 0 0 1-6.3-1.7l-.5-.3-4.5 1.2 1.2-4.4-.3-.5A12.4 12.4 0 1 1 16 28.4Zm6.8-9.3c-.4-.2-2.2-1.1-2.6-1.2-.3-.1-.6-.2-.8.2-.3.4-1 1.2-1.2 1.4-.2.2-.4.3-.8.1-.4-.2-1.6-.6-3-1.9-1.1-1-1.9-2.2-2.1-2.6-.2-.4 0-.6.2-.8l.6-.7.4-.6c.1-.2 0-.5 0-.7l-1.2-2.8c-.3-.7-.6-.6-.8-.6h-.7c-.3 0-.7.1-1 .5s-1.3 1.3-1.3 3.1 1.4 1.8c.2 2.3 3.2 4.9 4.1.7.6 1.3 1.1 2 1.5.8.4 1.5.6 2 .8.8.2 1.5.2 2.1.1.6-.1 2.2-.9 2.5-1.8.3-.9.3-1.7.2-1.8-.1-.2-.3-.3-.7-.5Z" />
+        </svg>
       </a>
-      {!open && (
-        <button className="float-chat" onClick={() => setOpen(true)}>CHAT<br /><small>ao vivo</small></button>
+      {s.chatEnabled !== false && !open && (
+        <button className="float-chat" type="button" onClick={() => setOpen(true)} aria-label="Abrir chat ao vivo" title="Chat ao vivo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+            <path d="M20.5 11.5a8.5 8.5 0 0 1-8.5 8.5 9 9 0 0 1-3.4-.7L3 21l1.7-5.2A8.5 8.5 0 1 1 20.5 11.5Z" />
+            <path d="M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01" strokeWidth="2.6" />
+          </svg>
+        </button>
       )}
       {open && <ChatWidget onClose={() => setOpen(false)} settings={s} />}
     </div>
