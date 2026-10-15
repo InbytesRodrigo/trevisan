@@ -32,6 +32,7 @@ export default function Catalog() {
   const [params] = useSearchParams();
   const category = params.get('categoria') || '';
   const [filters, setFilters] = useState(emptyFilters);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('recent');
   const [cart, setCart] = useState(readCart);
@@ -43,6 +44,7 @@ export default function Catalog() {
   const [customer, setCustomer] = useState({ name: '', phone: '', note: '' });
   const [catalogProducts, setCatalogProducts] = useState([]);
   const [loadError, setLoadError] = useState(false);
+  const activeFilterCount = Number(Boolean(category)) + filters.type.length + filters.format.length + Number(Boolean(filters.volume));
 
   useEffect(() => {
     if (!productId) setSelected(null);
@@ -177,7 +179,12 @@ export default function Catalog() {
       <section className="catalog-hero"><div className="container"><h1>{selected?.name || 'Impressoras e Multifuncionais'}</h1><p>{selected?.description || 'Escolha os equipamentos, monte seu carrinho e finalize o pedido pelo WhatsApp.'}</p></div></section>
 
       <main className="container catalog-layout">
-        <aside className="catalog-filters" aria-label="Filtros de produtos">
+        <aside className={`catalog-filters ${filtersOpen ? 'is-open' : ''}`} aria-label="Filtros de produtos">
+          <button className="catalog-filters-toggle" type="button" onClick={() => setFiltersOpen((value) => !value)} aria-expanded={filtersOpen} aria-controls="catalog-filters-body">
+            <span>Filtros {activeFilterCount > 0 && <span className="catalog-filter-count">{activeFilterCount}</span>}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+          <div className="catalog-filters-body" id="catalog-filters-body">
           <div className="catalog-filter-block"><h2>Categorias</h2><ul className="catalog-categories">
             <li><button type="button" className={!category ? 'active' : ''} onClick={() => setCategory('')}>Todos <span>{catalogProducts.filter((p) => p.active !== false).length}</span></button></li>
             {categories.map((item) => <li key={item.slug}><button type="button" className={category === item.slug ? 'active' : ''} onClick={() => setCategory(item.slug)}>{item.name}<span>{catalogProducts.filter((p) => p.active !== false && p.category === item.slug).length}</span></button></li>)}
@@ -192,10 +199,11 @@ export default function Catalog() {
             <option value="">Selecione</option>{[15000, 50000, 80000, 100000, 120000, 150000].map((value) => <option key={value} value={value}>{value / 1000} mil folhas</option>)}
           </select></div>
           <button type="button" className="catalog-button catalog-ghost" onClick={clearFilters}>Limpar filtros</button>
+          </div>
         </aside>
 
         <section className="catalog-content" aria-label="Produtos">
-          <div className="catalog-toolbar"><input className="catalog-control catalog-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nome, marca ou descrição..." aria-label="Buscar produtos" />
+          <div className="catalog-toolbar"><input className="catalog-control catalog-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar produtos..." aria-label="Buscar produtos" />
             <select className="catalog-control catalog-sort" value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Ordenar produtos">
               <option value="recent">Mais recentes</option><option value="price_asc">Menor preço</option><option value="price_desc">Maior preço</option><option value="name">Nome (A-Z)</option>
             </select>

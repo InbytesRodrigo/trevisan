@@ -120,7 +120,7 @@ export default function Seller() {
   };
 
   return (
-    <div className="inbox">
+    <div className={`inbox ${active ? 'has-active-chat' : ''}`}>
       {popup && (
         <div className="popup">
           <strong>{popup.title}</strong>
@@ -169,6 +169,7 @@ export default function Seller() {
         {active ? (
           <>
             <div className="thread-head">
+              <button className="seller-back" type="button" onClick={() => setActive(null)} aria-label="Voltar às conversas">←</button>
               <div>
                 <strong>{active.visitorName}</strong>
                 <div style={{ fontSize: 12, color: '#667781' }}>{active.visitorPhone} · {active.visitorEmail}</div>

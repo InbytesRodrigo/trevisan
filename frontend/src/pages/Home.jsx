@@ -18,6 +18,7 @@ export default function Home() {
   const s = settings || {};
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [activeMenu, setActiveMenu] = useState('');
   const [sent, setSent] = useState(false);
   const [catalogHighlights, setCatalogHighlights] = useState([]);
   const [form, setForm] = useState({
@@ -51,6 +52,9 @@ export default function Home() {
     const { name, value, type, checked } = e.target;
     setForm((f) => ({ ...f, [name]: type === 'checkbox' ? checked : value }));
   };
+
+  const closeMenu = () => { setMenu(false); setActiveMenu(''); };
+  const toggleMenuGroup = (name) => setActiveMenu((current) => current === name ? '' : name);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -90,18 +94,20 @@ export default function Home() {
               </>
             )}
           </a>
-          <button className="burger" onClick={() => setMenu((v) => !v)} aria-label="Menu">=</button>
-          <ul className={`menu ${menu ? 'open' : ''}`}>
-            <li>
-              <button type="button">Solucoes</button>
+          <button className="burger" type="button" onClick={() => { setMenu((value) => !value); setActiveMenu(''); }} aria-label={menu ? 'Fechar menu' : 'Abrir menu'} aria-expanded={menu} aria-controls="site-menu">
+            {menu ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5 5 19" /></svg> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>}
+          </button>
+          <ul id="site-menu" className={`menu ${menu ? 'open' : ''}`}>
+            <li className={activeMenu === 'solutions' ? 'open' : ''}>
+              <button type="button" onClick={() => toggleMenuGroup('solutions')} aria-expanded={activeMenu === 'solutions'}>Soluções <span className="menu-chevron">⌄</span></button>
               <div className="dropdown">
                 {(solutions || []).map((x) => (
-                  <a key={x.id} href="#solucoes">{x.subtitle} - {x.title}</a>
+                  <a key={x.id} href="#solucoes" onClick={closeMenu}>{x.subtitle} - {x.title}</a>
                 ))}
               </div>
             </li>
             <li>
-              <Link to="/equipamentos">Equipamentos</Link>
+              <Link to="/equipamentos" onClick={closeMenu}>Equipamentos</Link>
               <div className="dropdown">
                 <Link to="/equipamentos?categoria=impressoras">Impressoras</Link>
                 <Link to="/equipamentos?categoria=multifuncionais">Multifuncionais</Link>
@@ -109,24 +115,24 @@ export default function Home() {
                 <Link to="/equipamentos?categoria=largo-formato">Largo Formato</Link>
               </div>
             </li>
-            <li>
-              <button type="button">Para sua empresa</button>
+            <li className={activeMenu === 'segments' ? 'open' : ''}>
+              <button type="button" onClick={() => toggleMenuGroup('segments')} aria-expanded={activeMenu === 'segments'}>Para sua empresa <span className="menu-chevron">⌄</span></button>
               <div className="dropdown">
                 {(segments || []).map((x) => (
-                  <a key={x.id} href="#segmentos">{x.title}</a>
+                  <a key={x.id} href="#segmentos" onClick={closeMenu}>{x.title}</a>
                 ))}
               </div>
             </li>
-            <li>
-              <button type="button">Institucional</button>
+            <li className={activeMenu === 'institutional' ? 'open' : ''}>
+              <button type="button" onClick={() => toggleMenuGroup('institutional')} aria-expanded={activeMenu === 'institutional'}>Institucional <span className="menu-chevron">⌄</span></button>
               <div className="dropdown">
-                <a href="#contato">Quem somos</a>
-                <a href="#contato">Trabalhe conosco</a>
-                <a href="#contato">ESG</a>
+                <a href="#contato" onClick={closeMenu}>Quem somos</a>
+                <a href="#contato" onClick={closeMenu}>Trabalhe conosco</a>
+                <a href="#contato" onClick={closeMenu}>ESG</a>
               </div>
             </li>
-            <li><a href="#contato">Contato</a></li>
-            <li><Link to="/login" className="btn-client">Ja sou cliente</Link></li>
+            <li><a href="#contato" onClick={closeMenu}>Contato</a></li>
+            <li><Link to="/login" className="btn-client" onClick={closeMenu}>Já sou cliente</Link></li>
           </ul>
         </div>
       </header>
@@ -256,7 +262,7 @@ export default function Home() {
           <div>
             {(s.footerLogo || s.logo) ? <Link to="/" className="footer-brand"><img src={s.footerLogo || s.logo} alt={s.brandName || 'GrupoTrevisan'} /></Link> : <h4>{s.brandName || 'GrupoTrevisan'}</h4>}
             <p>{s.tagline}</p>
-            <p style={{ marginTop: 12 }}>{s.address}</p>
+            {s.address && <address className="footer-address"><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}`} target="_blank" rel="noreferrer">{s.address}</a></address>}
             <p>{s.phone}</p>
             {s.email && <p>{s.email}</p>}
           </div>

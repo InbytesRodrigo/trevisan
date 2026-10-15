@@ -51,6 +51,7 @@ function pageSeo(path, settings, products = []) {
       name: brand, url: `${base}/`, ...(logo ? { logo } : {}),
       ...(settings.phone ? { telephone: settings.phone } : {}),
       ...(settings.email ? { email: settings.email } : {}),
+      ...(settings.address ? { address: settings.address } : {}),
     });
     structuredData.push({ '@context': 'https://schema.org', '@type': 'WebSite', name: brand, url: `${base}/` });
   }

@@ -70,7 +70,7 @@ const defaultSettings = {
   phone: '(11) 99510-6569',
   whatsapp: '5511995106569',
   email: '',
-  address: 'Rua Robert Bosch, 544 - Sao Paulo, SP',
+  address: 'Rua Thales dos Santos Freire, 472 – São Bernardo do Campo, São Paulo - SP, 09751-020',
   footerText: 'GrupoTrevisan. Todos os Direitos Reservados.',
   chatEnabled: true,
   chatAutoOpen: true,
