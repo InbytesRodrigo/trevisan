@@ -2,7 +2,7 @@
   "name": "grupotrevisan-netlify",
   "private": true,
   "scripts": {
-    "build": "npm --prefix frontend run build && node scripts/prepare-netlify.cjs"
+    "build": "npm --prefix frontend install --no-audit --no-fund && npm --prefix frontend run build && node scripts/prepare-netlify.cjs"
   },
   "dependencies": {
     "@netlify/blobs": "^11.1.4",
