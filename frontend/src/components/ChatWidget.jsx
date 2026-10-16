@@ -18,12 +18,33 @@ export default function ChatWidget({ onClose, settings }) {
   const [error, setError] = useState('');
   const [contact, setContact] = useState({ phone: '', email: '' });
   const box = useRef(null);
+  const widget = useRef(null);
   const chatRef = useRef(null);
   const stepRef = useRef(0);
   const waitingRef = useRef(null);
   const busyRef = useRef(false);
   const varsRef = useRef({ name: '' });
   const aliveRef = useRef(false);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const syncViewport = () => {
+      if (!widget.current) return;
+      widget.current.style.setProperty('--chat-visual-height', `${Math.round(viewport?.height || window.innerHeight)}px`);
+      widget.current.style.setProperty('--chat-visual-top', `${Math.round(viewport?.offsetTop || 0)}px`);
+    };
+    document.body.classList.add('chat-open');
+    syncViewport();
+    viewport?.addEventListener('resize', syncViewport);
+    viewport?.addEventListener('scroll', syncViewport);
+    window.addEventListener('resize', syncViewport);
+    return () => {
+      document.body.classList.remove('chat-open');
+      viewport?.removeEventListener('resize', syncViewport);
+      viewport?.removeEventListener('scroll', syncViewport);
+      window.removeEventListener('resize', syncViewport);
+    };
+  }, []);
 
   useEffect(() => {
     if (box.current) box.current.scrollTop = box.current.scrollHeight;
@@ -177,7 +198,7 @@ export default function ChatWidget({ onClose, settings }) {
 
   const whatsapp = String(s.whatsapp || '').replace(/\D/g, '');
   return (
-    <div className="chat-widget">
+    <div className="chat-widget" ref={widget} role="dialog" aria-label="Chat online">
       <div className="cw-head">
         <img className="cw-photo" src={s.chatAgentPhoto || '/img/agent.jpg'} alt={agent} />
         <div><strong>{agent}</strong><span className="cw-status"><i className="dot on" />{chat?.assignedName ? `Atendimento · ${chat.assignedName}` : role}</span></div>
