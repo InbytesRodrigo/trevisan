@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '../App.jsx';
 import { api } from '../api.js';
+import { themeColor } from '../theme.js';
 import './catalog.css';
 
 const categories = [
@@ -31,6 +32,11 @@ export default function Catalog() {
   const brand = settings?.brandName || 'GrupoTrevisan';
   const brandLogo = settings?.logo || '';
   const footerLogo = settings?.footerLogo || brandLogo;
+  const themeStyle = {
+    ...themeColor(settings?.toolbarColor, '--toolbar-bg', '--toolbar-text'),
+    ...themeColor(settings?.headerColor, '--header-bg', '--header-text'),
+    ...themeColor(settings?.footerColor, '--footer-bg', '--footer-text'),
+  };
   const phone = settings?.phone || '(11) 99510-6569';
   const whatsappNumber = String(settings?.whatsapp || '').replace(/\D/g, '');
   const [params] = useSearchParams();
@@ -165,11 +171,11 @@ export default function Catalog() {
   };
 
   return (
-    <div className="catalog-page">
+    <div className="catalog-page" style={themeStyle}>
       <div className="catalog-topline"><div className="container catalog-topline-inner"><span>Soluções em tecnologia para empresas</span><a href={`tel:${phone.replace(/\D/g, '')}`}>{phone}</a></div></div>
       <header className="catalog-header">
         <div className="container catalog-header-inner">
-          <Link className="catalog-brand" to="/" aria-label={`${brand} — página inicial`} style={{ '--site-logo-width': `${Number(settings?.logoWidth) || 220}px` }}>
+          <Link className={`catalog-brand ${themeStyle['--header-text'] === '#000000' ? 'catalog-brand-on-light' : ''}`} to="/" aria-label={`${brand} — página inicial`} style={{ '--site-logo-width': `${Number(settings?.logoWidth) || 220}px` }}>
             {brandLogo ? <img src={brandLogo} alt={brand} /> : <><span className="catalog-brand-mark">GT</span><span>{brand}</span></>}
           </Link>
           <div className="catalog-header-actions">
