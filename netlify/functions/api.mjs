@@ -5,7 +5,7 @@ import analytics from '../../backend/analytics.js';
 import chatFlow from '../../backend/chat-flow.js';
 import reviews from '../../backend/reviews.js';
 import { addUser, changeAdminCredentials, currentUser, login, publicUser } from '../lib/auth.mjs';
-import { defaultSettings, deleteDocument, getCatalog, getDocument, getSingleton, listAnalyticsEvents, listChatMessages, listDocuments, putDocument, putSingleton } from '../lib/store.mjs';
+import { defaultSettings, deleteDocument, getCatalog, getDocument, getSingleton, listAnalyticsEvents, listChatMessages, listDocuments, listVisibleChats, putDocument, putSingleton, updateChatPresence } from '../lib/store.mjs';
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const fail = (message, status = 400) => json({ error: message }, status);
@@ -246,12 +246,13 @@ export default async function handler(request) {
 
     if (method === 'GET' && path === '/chats') {
       const { error } = await permission(request); if (error) return error;
-      return json((await listDocuments('chats')).filter((chat) => chat.lastVisitorAt || chat.visitorPhone || chat.visitorEmail).map(exposeChat).sort((a, b) => b.lastMessageAt - a.lastMessageAt));
+      const recent = Date.now() - 30 * 60 * 1000;
+      return json((await listVisibleChats(recent)).map(exposeChat).sort((a, b) => (b.lastVisitorAt || b.lastSeenAt || b.createdAt) - (a.lastVisitorAt || a.lastSeenAt || a.createdAt)));
     }
     if (method === 'POST' && path === '/chats') {
       const body = await getBody(request);
       const now = Date.now();
-      const chat = { id: randomUUID(), visitorKey: randomUUID(), visitorName: String(body.visitorName || 'Visitante').slice(0, 100), visitorPhone: '', visitorEmail: '', visitorPage: String(body.visitorPage || '/').slice(0, 150), status: 'new', assignedTo: null, assignedName: null, lastMessage: '', lastMessageAt: now, createdAt: now, unreadSeller: 0, unreadVisitor: 0 };
+      const chat = { id: randomUUID(), visitorKey: randomUUID(), visitorName: String(body.visitorName || 'Visitante').slice(0, 100), visitorPhone: '', visitorEmail: '', visitorPage: String(body.visitorPage || '/').slice(0, 150), status: 'new', assignedTo: null, assignedName: null, lastMessage: '', lastMessageAt: null, lastSeenAt: now, createdAt: now, unreadSeller: 0, unreadVisitor: 0 };
       await putDocument('chats', chat.id, chat);
       return json({ ...exposeChat(chat), visitorKey: chat.visitorKey });
     }
@@ -262,6 +263,11 @@ export default async function handler(request) {
       const visitorKey = request.headers.get('x-visitor-key') || url.searchParams.get('key');
       if (!user && visitorKey !== chat.visitorKey) return fail('Acesso negado', 403);
       if (method === 'GET' && parts.length === 2) return json(exposeChat(chat));
+      if (method === 'POST' && parts[2] === 'presence' && !user) {
+        const body = await getBody(request);
+        await updateChatPresence(chat.id, Date.now(), String(body.visitorPage || chat.visitorPage || '/').slice(0, 150));
+        return json({ ok: true });
+      }
       if (method === 'GET' && parts[2] === 'messages') {
         return json(await listChatMessages(chat.id));
       }
@@ -285,6 +291,7 @@ export default async function handler(request) {
         if (from === 'visitor') {
           for (const field of ['visitorName', 'visitorPhone', 'visitorEmail']) if (body[field]) chat[field] = String(body[field]).slice(0, 150);
           chat.lastVisitorAt = message.createdAt; chat.unreadSeller += 1;
+          chat.lastSeenAt = message.createdAt;
           if (chat.status === 'closed') chat.status = 'open';
         } else if (!message.automated) {
           chat.unreadSeller = 0; chat.unreadVisitor += 1; chat.status = 'open';

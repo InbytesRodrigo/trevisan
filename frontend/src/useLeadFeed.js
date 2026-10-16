@@ -3,10 +3,13 @@ import { api } from './api.js';
 
 export function useLeadFeed(enabled = true) {
   const [chats, setChats] = useState([]);
+  const [formLeads, setFormLeads] = useState([]);
+  const [formsError, setFormsError] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [soundReady, setSoundReady] = useState(false);
   const previousRef = useRef(null);
+  const previousFormsRef = useRef(null);
   const busyRef = useRef(false);
   const audioRef = useRef(null);
   const soundReadyRef = useRef(false);
@@ -60,7 +63,7 @@ export function useLeadFeed(enabled = true) {
           !previousRef.current.has(item.id) || Number(item.lastVisitorAt) > previousRef.current.get(item.id)
         ));
         if (incoming) {
-          const isNew = !previousRef.current.has(incoming.id);
+          const isNew = !previousRef.current.has(incoming.id) || previousRef.current.get(incoming.id) === 0;
           setNotice(`${isNew ? 'NOVO LEAD' : 'NOVA MENSAGEM'}: ${incoming.visitorName || 'Visitante'}`);
           window.clearTimeout(noticeTimerRef.current);
           noticeTimerRef.current = window.setTimeout(() => setNotice(''), 8000);
@@ -74,24 +77,47 @@ export function useLeadFeed(enabled = true) {
     finally { busyRef.current = false; }
   }, [enabled, playSound]);
 
+  const refreshForms = useCallback(async () => {
+    if (!enabled) return;
+    try {
+      const next = await api('/api/leads');
+      const items = Array.isArray(next) ? [...next].sort((a, b) => Number(b.createdAt) - Number(a.createdAt)) : [];
+      if (previousFormsRef.current) {
+        const incoming = items.find((item) => !previousFormsRef.current.has(item.id));
+        if (incoming) {
+          setNotice(`NOVO LEAD: ${[incoming.firstName, incoming.lastName].filter(Boolean).join(' ') || 'Formulário do site'}`);
+          window.clearTimeout(noticeTimerRef.current);
+          noticeTimerRef.current = window.setTimeout(() => setNotice(''), 8000);
+          playSound();
+        }
+      }
+      previousFormsRef.current = new Set(items.map((item) => item.id));
+      setFormLeads(items);
+      setFormsError('');
+    } catch (cause) { setFormsError(cause.message); }
+  }, [enabled, playSound]);
+
   useEffect(() => {
     if (!enabled) return undefined;
     refresh();
+    refreshForms();
     const timer = window.setInterval(refresh, 2000);
-    const wake = () => { if (document.visibilityState === 'visible') refresh(); };
+    const formsTimer = window.setInterval(refreshForms, 12000);
+    const wake = () => { if (document.visibilityState === 'visible') { refresh(); refreshForms(); } };
     window.addEventListener('focus', wake);
     window.addEventListener('online', wake);
     document.addEventListener('visibilitychange', wake);
     return () => {
       window.clearInterval(timer);
+      window.clearInterval(formsTimer);
       window.clearTimeout(noticeTimerRef.current);
       window.removeEventListener('focus', wake);
       window.removeEventListener('online', wake);
       document.removeEventListener('visibilitychange', wake);
     };
-  }, [enabled, refresh]);
+  }, [enabled, refresh, refreshForms]);
 
   useEffect(() => () => { audioRef.current?.close().catch(() => {}); }, []);
 
-  return { chats, error, notice, soundReady, enableSound, disableSound, refresh };
+  return { chats, formLeads, formsError, error, notice, soundReady, enableSound, disableSound, refresh, refreshForms };
 }

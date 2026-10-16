@@ -1,7 +1,7 @@
 const TOKEN_KEY = 'grupotrevisan_token';
 
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY) || '';
+  try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; }
 }
 
 export function setToken(token) {
@@ -12,7 +12,7 @@ export function setToken(token) {
 export async function api(path, options = {}) {
   const { auth = true, ...requestOptions } = options;
   const headers = { ...(options.headers || {}) };
-  const token = getToken();
+  const token = auth ? getToken() : '';
   if (auth && token) headers.Authorization = `Bearer ${token}`;
   if (!(options.body instanceof FormData) && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';

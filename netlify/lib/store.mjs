@@ -17,6 +17,13 @@ export async function putDocument(collection, id, data) {
   return data;
 }
 
+export async function updateChatPresence(id, lastSeenAt, visitorPage) {
+  const rows = await db().sql`UPDATE site_documents
+    SET data = data || ${JSON.stringify({ lastSeenAt, visitorPage })}::jsonb, updated_at = NOW()
+    WHERE collection = ${'chats'} AND id = ${String(id)} RETURNING data`;
+  return rows[0]?.data ?? null;
+}
+
 export async function deleteDocument(collection, id) {
   const rows = await db().sql`DELETE FROM site_documents WHERE collection = ${collection} AND id = ${String(id)} RETURNING id`;
   return rows.length > 0;
@@ -36,6 +43,18 @@ export async function putSingleton(collection, data) {
 
 export async function listDocuments(collection) {
   const rows = await db().sql`SELECT data FROM site_documents WHERE collection = ${collection} AND id <> ${'_singleton'} ORDER BY updated_at DESC`;
+  return rows.map((row) => row.data);
+}
+
+export async function listVisibleChats(recent) {
+  const rows = await db().sql`SELECT data FROM site_documents
+    WHERE collection = ${'chats'}
+      AND (
+        COALESCE((data->>'lastVisitorAt')::bigint, 0) > 0
+        OR COALESCE(data->>'visitorPhone', '') <> ''
+        OR COALESCE(data->>'visitorEmail', '') <> ''
+        OR COALESCE((data->>'lastSeenAt')::bigint, 0) > ${recent}
+      )`;
   return rows.map((row) => row.data);
 }
 

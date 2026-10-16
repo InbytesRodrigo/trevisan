@@ -1,22 +1,70 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { api } from '../api.js';
 import ChatWidget from './ChatWidget.jsx';
-import { readChatSession } from '../chatSession.js';
+import { ensureChatSession, readChatSession, saveChatSession } from '../chatSession.js';
 
 export default function ContactBubbles({ settings }) {
-  const [open, setOpen] = useState(() => Boolean(readChatSession()));
-  const [autoHandled, setAutoHandled] = useState(() => Boolean(readChatSession()));
+  const { pathname } = useLocation();
+  const [open, setOpen] = useState(() => Boolean(readChatSession()?.opened));
+  const [autoHandled, setAutoHandled] = useState(() => Boolean(readChatSession()?.autoHandled));
   const whatsapp = String(settings?.whatsapp || '').replace(/\D/g, '');
   const chatEnabled = settings?.chatEnabled !== false;
 
   useEffect(() => {
+    if (!chatEnabled) return undefined;
+    let mounted = true;
+    let busy = false;
+    const heartbeat = async () => {
+      if (busy || document.visibilityState === 'hidden') return;
+      busy = true;
+      try {
+        const session = await ensureChatSession();
+        if (!mounted) return;
+        await api(`/api/chats/${session.id}/presence`, {
+          method: 'POST', auth: false,
+          headers: { 'x-visitor-key': session.visitorKey },
+          body: JSON.stringify({ visitorPage: pathname }),
+        });
+      } catch { /* The next heartbeat retries when the connection returns. */ }
+      finally { busy = false; }
+    };
+    heartbeat();
+    const timer = window.setInterval(heartbeat, 15000);
+    const wake = () => { if (document.visibilityState === 'visible') heartbeat(); };
+    document.addEventListener('visibilitychange', wake);
+    window.addEventListener('focus', wake);
+    return () => { mounted = false; window.clearInterval(timer); document.removeEventListener('visibilitychange', wake); window.removeEventListener('focus', wake); };
+  }, [chatEnabled, pathname]);
+
+  useEffect(() => {
+    if (!chatEnabled || open) return undefined;
+    let mounted = true;
+    const check = async () => {
+      const session = readChatSession();
+      if (!session) return;
+      try {
+        const details = await api(`/api/chats/${session.id}`, { auth: false, headers: { 'x-visitor-key': session.visitorKey } });
+        if (mounted && details.unreadVisitor > 0) {
+          saveChatSession({ opened: true, autoHandled: true });
+          setOpen(true);
+          setAutoHandled(true);
+        }
+      } catch { /* The next check retries when the connection returns. */ }
+    };
+    const timer = window.setInterval(check, 4000);
+    return () => { mounted = false; window.clearInterval(timer); };
+  }, [chatEnabled, open]);
+
+  useEffect(() => {
     if (!chatEnabled || settings?.chatAutoOpen === false || autoHandled || open) return undefined;
     const delay = Math.max(1, Number(settings?.chatOpenDelay) || 10) * 1000;
-    const timer = window.setTimeout(() => { setOpen(true); setAutoHandled(true); }, delay);
+    const timer = window.setTimeout(() => { saveChatSession({ opened: true, autoHandled: true }); setOpen(true); setAutoHandled(true); }, delay);
     return () => window.clearTimeout(timer);
   }, [chatEnabled, settings?.chatAutoOpen, settings?.chatOpenDelay, autoHandled, open]);
 
-  const openChat = () => { setOpen(true); setAutoHandled(true); };
-  const closeChat = () => { setOpen(false); setAutoHandled(true); };
+  const openChat = () => { saveChatSession({ opened: true, autoHandled: true }); setOpen(true); setAutoHandled(true); };
+  const closeChat = () => { saveChatSession({ opened: false, autoHandled: true }); setOpen(false); setAutoHandled(true); };
 
   return <>
     {whatsapp && <a className="float-wa" href={`https://wa.me/${whatsapp}?text=${encodeURIComponent('Olá! Vim pelo site do GrupoTrevisan e gostaria de falar com vocês.')}`} target="_blank" rel="noopener noreferrer" aria-label="Falar pelo WhatsApp" title="Falar pelo WhatsApp" data-track="Balão: WhatsApp">

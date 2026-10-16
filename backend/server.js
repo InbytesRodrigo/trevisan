@@ -541,7 +541,21 @@ app.patch('/api/reviews/:id', auth, adminOnly, (req, res) => {
 });
 
 app.get('/api/chats', auth, (_req, res) => {
-  res.json(readDB('chats', []).filter((chat) => chat.lastVisitorAt || chat.visitorPhone || chat.visitorEmail));
+  const recent = Date.now() - 30 * 60 * 1000;
+  res.json(readDB('chats', []).filter((chat) => chat.lastVisitorAt || chat.visitorPhone || chat.visitorEmail || chat.lastSeenAt > recent)
+    .map((chat) => { const { visitorKey, ...publicChat } = chat; return publicChat; })
+    .sort((a, b) => (b.lastVisitorAt || b.lastSeenAt || b.createdAt) - (a.lastVisitorAt || a.lastSeenAt || a.createdAt)));
+});
+
+app.post('/api/chats/:id/presence', (req, res) => {
+  const chats = readDB('chats', []);
+  const chat = chats.find((item) => item.id === req.params.id);
+  if (!chat) return res.status(404).json({ error: 'Chat nao encontrado' });
+  if (req.headers['x-visitor-key'] !== chat.visitorKey) return res.status(403).json({ error: 'Acesso negado' });
+  chat.lastSeenAt = Date.now();
+  chat.visitorPage = String(req.body?.visitorPage || chat.visitorPage || '/').slice(0, 150);
+  writeDB('chats', chats);
+  res.json({ ok: true });
 });
 
 app.get('/api/chats/:id', (req, res) => {
@@ -592,6 +606,7 @@ app.post('/api/chats/:id/messages', (req, res) => {
   else if (!automated) {
     ['visitorName', 'visitorPhone', 'visitorEmail'].forEach((field) => { if (req.body[field]) chats[idx][field] = String(req.body[field]).slice(0, 150); });
     chats[idx].lastVisitorAt = message.createdAt;
+    chats[idx].lastSeenAt = message.createdAt;
     chats[idx].unreadSeller = (chats[idx].unreadSeller || 0) + 1;
     if (chats[idx].status === 'closed') chats[idx].status = 'open';
   }
@@ -624,7 +639,8 @@ app.post('/api/chats', (req, res) => {
     assignedTo: null,
     assignedName: null,
     lastMessage: '',
-    lastMessageAt: Date.now(),
+    lastMessageAt: null,
+    lastSeenAt: Date.now(),
     createdAt: Date.now(),
     unreadSeller: 0,
     unreadVisitor: 0,

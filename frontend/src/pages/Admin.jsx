@@ -105,7 +105,7 @@ export default function Admin() {
           <span className="logo-mark" />
           Admin
         </div>
-        <button type="button" className={`tab-button ${tab === 'leads' ? 'active' : ''}`} onClick={() => setTab('leads')}>Leads e conversas{leadFeed.chats.some((chat) => chat.unreadSeller > 0) && <span className="admin-lead-count">{leadFeed.chats.filter((chat) => chat.unreadSeller > 0).length}</span>}</button>
+        <button type="button" className={`tab-button ${tab === 'leads' ? 'active' : ''}`} onClick={() => setTab('leads')}>Leads e conversas{leadFeed.chats.some((chat) => Number(chat.lastSeenAt) > Date.now() - 45000) && <span className="admin-online-count" title="Visitantes no site">{leadFeed.chats.filter((chat) => Number(chat.lastSeenAt) > Date.now() - 45000).length} online</span>}{leadFeed.chats.some((chat) => chat.unreadSeller > 0) && <span className="admin-lead-count">{leadFeed.chats.filter((chat) => chat.unreadSeller > 0).length}</span>}</button>
         <button type="button" className={'admin-sound-button' + (leadFeed.soundReady ? ' on' : '')} onClick={leadFeed.soundReady ? leadFeed.disableSound : leadFeed.enableSound}>{leadFeed.soundReady ? '🔊 Avisos sonoros ligados' : '🔔 Ativar som dos leads'}</button>
         <button type="button" className={`tab-button ${tab === 'analytics' ? 'active' : ''}`} onClick={() => setTab('analytics')}>Acessos e cliques</button>
         <button type="button" className={`tab-button ${tab === 'avaliacoes' ? 'active' : ''}`} onClick={() => setTab('avaliacoes')}>Aprovações de avaliações</button>

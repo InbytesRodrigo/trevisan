@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
-import { clearChatSession, readChatSession, saveChatSession } from '../chatSession.js';
+import { clearChatSession, ensureChatSession, readChatSession, saveChatSession } from '../chatSession.js';
 
 function fill(value, vars) {
   return String(value || '').replace(/\{(\w+)\}/g, (_, key) => vars[key] || '');
@@ -58,6 +58,8 @@ export default function ChatWidget({ onClose, settings }) {
       step: stepRef.current,
       waiting: waitingRef.current,
       vars: varsRef.current,
+      opened: true,
+      autoHandled: true,
     });
   };
 
@@ -76,7 +78,7 @@ export default function ChatWidget({ onClose, settings }) {
     const audioUrl = step.kind === 'audio' ? String(step.audioUrl || '') : '';
     setActivity(audioUrl ? 'recording' : 'typing');
     await new Promise((resolve) => setTimeout(resolve, Math.max(400, Number(step.typingMs) || 1200)));
-    if (!aliveRef.current) return;
+    if (!aliveRef.current || stepRef.current !== index) { busyRef.current = false; return; }
     setActivity('');
     const body = fill(step.text, varsRef.current).trim();
     try {
@@ -117,18 +119,19 @@ export default function ChatWidget({ onClose, settings }) {
             const index = flow.findIndex((step, i) => String(step.id || i) === item.flowStepId);
             return index < 0 ? highest : Math.max(highest, index + 1);
           }, 0);
-          stepRef.current = Math.max(Number(saved.step) || 0, completed);
+          stepRef.current = history.some((item) => item.from === 'seller' && !item.automated)
+            ? flow.length : Math.max(Number(saved.step) || 0, completed);
           waitingRef.current = saved.waiting || null;
+          if (stepRef.current === flow.length) waitingRef.current = null;
           persist();
+          if (existing.unreadVisitor > 0) {
+            api(`/api/chats/${saved.id}/read`, { method: 'POST', headers, auth: false }).catch(() => {});
+          }
           if (!waitingRef.current) setTimeout(runFlow, 350);
         } catch { clearChatSession(); }
       }
       if (chatRef.current || !aliveRef.current) return;
-      const created = await api('/api/chats', {
-        method: 'POST',
-        auth: false,
-        body: JSON.stringify({ visitorName: 'Visitante', visitorPage: window.location.pathname }),
-      });
+      const created = await ensureChatSession();
       if (!aliveRef.current) return;
       chatRef.current = created;
       setChat(created);
@@ -147,7 +150,16 @@ export default function ChatWidget({ onClose, settings }) {
         ]);
         if (!aliveRef.current) return;
         setMessages(history);
+        if (history.some((item) => item.from === 'seller' && !item.automated) && stepRef.current < flow.length) {
+          stepRef.current = flow.length;
+          waitingRef.current = null;
+          persist();
+          setActivity('');
+        }
         setChat({ ...details, visitorKey: current.visitorKey });
+        if (details.unreadVisitor > 0) {
+          api(`/api/chats/${current.id}/read`, { method: 'POST', headers, auth: false }).catch(() => {});
+        }
         setError('');
       } catch {}
     };
