@@ -47,6 +47,10 @@ export default function Seller({ embedded = false, sharedFeed = null }) {
   }, [chats]);
 
   useEffect(() => {
+    if (filter === 'visitors' && chats.some((chat) => chat.id === active?.id && isLead(chat))) setFilter('all');
+  }, [chats, filter, active?.id]);
+
+  useEffect(() => {
     if (!active?.id) return undefined;
     let mounted = true;
     const chatId = active.id;
@@ -138,10 +142,24 @@ export default function Seller({ embedded = false, sharedFeed = null }) {
     } catch (cause) { setText(value); setError(cause.message); }
   };
 
+  const switchSection = (section) => {
+    if (active && ((section === 'visitors') !== !isLead(active))) {
+      selectionRef.current += 1;
+      activeRef.current = null;
+      setActive(null);
+      setMessages([]);
+    }
+    setQuery('');
+    setFilter(section);
+  };
+
   const list = useMemo(() => chats.filter((chat) => {
     const status = statusOf(chat);
-    const match = !query || [chat.visitorName, chat.visitorPhone, chat.visitorEmail].some((value) => String(value || '').toLocaleLowerCase('pt-BR').includes(query.toLocaleLowerCase('pt-BR')));
-    return match && (filter === 'all' || (filter === 'mine' ? chat.assignedTo === user?.id : filter === 'online' ? isOnline(chat) : status === filter));
+    const match = !query || [chat.visitorName, chat.visitorPhone, chat.visitorEmail, chat.visitorPage].some((value) => String(value || '').toLocaleLowerCase('pt-BR').includes(query.toLocaleLowerCase('pt-BR')));
+    if (!match) return false;
+    if (filter === 'visitors') return !isLead(chat) && isOnline(chat);
+    if (!isLead(chat)) return false;
+    return filter === 'all' || (filter === 'mine' ? chat.assignedTo === user?.id : status === filter);
   }).sort((a, b) => (isLead(b) ? b.lastMessageAt : b.lastSeenAt || b.createdAt) - (isLead(a) ? a.lastMessageAt : a.lastSeenAt || a.createdAt)), [chats, filter, query, user?.id]);
 
   const visibleForms = useMemo(() => {
@@ -152,7 +170,8 @@ export default function Seller({ embedded = false, sharedFeed = null }) {
   }, [formLeads, filter, query]);
 
   const counts = {
-    all: chats.length + formLeads.length,
+    all: chats.filter(isLead).length + formLeads.length,
+    visitors: chats.filter((chat) => !isLead(chat) && isOnline(chat)).length,
     forms: formLeads.length,
     online: chats.filter(isOnline).length,
     new: chats.filter((chat) => isLead(chat) && statusOf(chat) === 'new').length,
@@ -165,14 +184,16 @@ export default function Seller({ embedded = false, sharedFeed = null }) {
     <div className="inbox-list">
       <header><div><small>CENTRAL DE ATENDIMENTO</small><strong>Leads e conversas</strong><span className={'lead-live' + (feed.error ? ' offline' : '')}><i /> {feed.error ? 'Conexão indisponível' : 'Atualização automática'}</span></div><div className="lead-head-actions"><button className={'lead-sound-toggle' + (feed.soundReady ? ' on' : '')} type="button" onClick={feed.soundReady ? feed.disableSound : feed.enableSound}>{feed.soundReady ? '🔊 Som ligado' : '🔔 Ativar som'}</button>{!embedded && <span><Link to="/">Site</Link><button className="chip" type="button" onClick={() => { logout(); nav('/login'); }}>Sair</button></span>}</div></header>
       <div className="lead-overview"><div><strong>{counts.online}</strong><span>no site agora</span></div><div><strong>{counts.new}</strong><span>novos leads</span></div><div><strong>{counts.forms}</strong><span>formulários</span></div></div>
-      <div className="lead-list-tools"><input value={query} onChange={(event) => setQuery(event.target.value)} type="search" placeholder="Buscar nome, telefone ou e-mail" aria-label="Buscar leads" /><div className="filters">{[['all', 'Todos ' + counts.all], ['online', 'No site ' + counts.online], ['new', 'Novos ' + counts.new], ['forms', 'Formulário ' + counts.forms], ['waiting', 'Aguardando ' + counts.waiting], ['overdue', 'Atrasados ' + counts.overdue], ['mine', 'Meus']].map(([key, label]) => <button key={key} type="button" className={'chip' + (filter === key ? ' on' : '')} onClick={() => setFilter(key)}>{label}</button>)}</div></div>
+      <div className="lead-main-tabs"><button type="button" className={filter !== 'visitors' ? 'active' : ''} onClick={() => switchSection('all')} aria-pressed={filter !== 'visitors'}>Atendimentos <span>{counts.all}</span></button><button type="button" className={filter === 'visitors' ? 'active' : ''} onClick={() => switchSection('visitors')} aria-pressed={filter === 'visitors'}>Visitantes <span>{counts.visitors}</span></button></div>
+      <div className="lead-list-tools"><input value={query} onChange={(event) => setQuery(event.target.value)} type="search" placeholder={filter === 'visitors' ? 'Buscar visitante ou página' : 'Buscar nome, telefone ou e-mail'} aria-label={filter === 'visitors' ? 'Buscar visitantes' : 'Buscar leads'} />{filter !== 'visitors' && <div className="filters">{[['all', 'Todos ' + counts.all], ['new', 'Novos ' + counts.new], ['forms', 'Formulário ' + counts.forms], ['waiting', 'Aguardando ' + counts.waiting], ['overdue', 'Atrasados ' + counts.overdue], ['mine', 'Meus']].map(([key, label]) => <button key={key} type="button" className={'chip' + (filter === key ? ' on' : '')} onClick={() => setFilter(key)}>{label}</button>)}</div>}</div>
       <div className="lead-list-scroll">
+      {filter === 'visitors' && <p className="lead-visitor-hint">Pessoas navegando sem iniciar conversa. Você pode enviar uma mensagem; quando responderem, aparecerão em Atendimentos.</p>}
       {feed.formsError && (filter === 'all' || filter === 'forms') && <p className="lead-error" role="alert">Não foi possível carregar os contatos do formulário. <button type="button" onClick={feed.refreshForms}>Tentar novamente</button></p>}
       {visibleForms.length > 0 && <div className="lead-form-group"><strong>Solicitações recebidas</strong>{visibleForms.map((lead) => <details className="lead-form-card" key={lead.id}><summary><span className="lead-form-name">{[lead.firstName, lead.lastName].filter(Boolean).join(' ') || 'Contato pelo formulário'}</span><span className="lead-tag">NOVO LEAD</span><small>{time(lead.createdAt)}</small></summary><div className="lead-form-info">{lead.company && <p><b>Empresa:</b> {lead.company}</p>}{lead.phone && <p><b>Telefone:</b> {lead.phone}</p>}{lead.email && <p><b>E-mail:</b> {lead.email}</p>}{lead.pillar && <p><b>Interesse:</b> {lead.pillar}</p>}{lead.message && <p><b>Mensagem:</b> {lead.message}</p>}<div className="lead-form-actions">{lead.phone && <a href={whatsappFor(lead.phone)} target="_blank" rel="noopener noreferrer">Responder no WhatsApp ↗</a>}{lead.email && <a href={`mailto:${lead.email}`}>Responder por e-mail ↗</a>}</div></div></details>)}</div>}
       {list.map((chat) => <button type="button" key={chat.id} className={'conv lead-conv ' + statusOf(chat) + (active?.id === chat.id ? ' active' : '')} onClick={() => openChat(chat)}>
         <span className="cw-av">{(chat.visitorName || 'V').slice(0, 1).toUpperCase()}</span>
         <span className="conv-meta"><span className="lead-conv-line"><b>{chat.visitorName || 'Visitante'}</b>{chat.unreadSeller > 0 && <span className="badge">{chat.unreadSeller}</span>}</span><span className={'lead-tag' + (!isLead(chat) ? ' visitor-tag' : '')}>{isLead(chat) ? 'NOVO LEAD' : 'VISITANTE'}</span><span className="lead-status">{isOnline(chat) ? '● No site agora' : statusNames[statusOf(chat)]}</span><p>{chat.lastMessage || (isOnline(chat) ? 'Navegando no site · Envie uma mensagem' : 'Visitou o site')}</p><small>{time(isLead(chat) ? chat.lastMessageAt : chat.lastSeenAt || chat.createdAt)}</small></span>
-      </button>)}{!list.length && !visibleForms.length && <p className="lead-empty">Nenhum contato neste filtro.</p>}</div>
+      </button>)}{!list.length && !visibleForms.length && <p className="lead-empty">{filter === 'visitors' ? 'Ninguém navegando no momento.' : 'Nenhum atendimento neste filtro.'}</p>}</div>
     </div>
     <div className="thread lead-thread">{active ? <>
       <div className="thread-head"><button className="seller-back" type="button" onClick={() => { selectionRef.current += 1; setActive(null); }} aria-label="Voltar às conversas">←</button><div className="lead-thread-title"><span className={'lead-tag' + (!isLead(active) ? ' visitor-tag' : '')}>{isLead(active) ? 'NOVO LEAD' : 'VISITANTE'}</span><strong>{active.visitorName || 'Visitante'}</strong><small>Entrou em {time(active.createdAt)} · {isOnline(active) ? 'No site agora' : 'Fora do site'}</small></div><div className="lead-thread-actions">{!active.assignedTo && <button className="btn" type="button" onClick={assign}>Atender</button>}{active.status !== 'closed' && <button className="btn ghost" type="button" onClick={closeChat}>Encerrar</button>}</div></div>
@@ -180,7 +201,7 @@ export default function Seller({ embedded = false, sharedFeed = null }) {
       <div className="thread-body" ref={box}>{messages.map((message) => <div key={message.id} className={'bubble ' + (message.from === 'seller' ? 'mine' : 'theirs')}>{message.text && <span>{message.text}</span>}{message.audioUrl && <audio controls preload="none" src={message.audioUrl} aria-label="Mensagem de áudio" />}<time>{message.senderName} · {time(message.createdAt)}</time></div>)}</div>
       {(error || feed.error) && <p className="lead-error" role="alert">{error || feed.error}</p>}
       <form className="cw-send" onSubmit={send}><input value={text} onChange={(event) => setText(event.target.value)} placeholder={isLead(active) ? 'Responder ao lead' : 'Iniciar conversa com o visitante'} aria-label="Enviar mensagem" /><button type="submit" disabled={!text.trim()} aria-label="Enviar resposta">➤</button></form>
-    </> : <div className="lead-placeholder"><span>✦</span><h2>Seus leads em um só lugar</h2><p>Selecione uma conversa para ver os dados do contato e responder.</p>{(error || feed.error) && <p className="lead-error" role="alert">{error || feed.error}</p>}</div>}</div>
+    </> : <div className="lead-placeholder"><span>✦</span><h2>{filter === 'visitors' ? 'Visitantes do site' : 'Seus leads em um só lugar'}</h2><p>{filter === 'visitors' ? 'Selecione um visitante para ver a página acessada ou iniciar uma mensagem.' : 'Selecione uma conversa para ver os dados do contato e responder.'}</p>{(error || feed.error) && <p className="lead-error" role="alert">{error || feed.error}</p>}</div>}</div>
     {active && <aside className="lead-details"><span className={'lead-tag' + (!isLead(active) ? ' visitor-tag' : '')}>{isLead(active) ? 'NOVO LEAD' : 'VISITANTE'}</span><h3>Dados do contato</h3><dl><dt>Nome</dt><dd>{active.visitorName || 'Visitante'}</dd><dt>Telefone</dt><dd>{active.visitorPhone ? <a href={'tel:' + active.visitorPhone.replace(/\D/g, '')}>{active.visitorPhone}</a> : 'Não informado'}</dd><dt>E-mail</dt><dd>{active.visitorEmail ? <a href={'mailto:' + active.visitorEmail}>{active.visitorEmail}</a> : 'Não informado'}</dd><dt>Página atual</dt><dd>{active.visitorPage || 'Site'}</dd><dt>Data e hora da entrada</dt><dd>{time(active.createdAt)}</dd><dt>Última visita</dt><dd>{time(active.lastSeenAt)}</dd><dt>Última mensagem</dt><dd>{active.lastMessage ? time(active.lastMessageAt) : '—'}</dd><dt>Presença</dt><dd className={isOnline(active) ? 'lead-presence online' : 'lead-presence'}>{isOnline(active) ? '● Visitando agora' : 'Fora do site'}</dd><dt>Status</dt><dd>{statusNames[statusOf(active)] || 'Em atendimento'}</dd><dt>Atendente</dt><dd>{active.assignedName || 'Ainda não atribuído'}</dd></dl>{active.visitorPhone && <a className="lead-whatsapp" href={'https://wa.me/' + active.visitorPhone.replace(/\D/g, '')} target="_blank" rel="noopener noreferrer">Chamar lead no WhatsApp ↗</a>}</aside>}
   </div>;
 }
