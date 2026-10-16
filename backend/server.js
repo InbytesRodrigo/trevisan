@@ -61,6 +61,7 @@ const defaultSettings = {
   toolbarColor: '',
   headerColor: '',
   footerColor: '',
+  instagramHandle: '',
   favicon: '/favicon.png',
   siteUrl: '',
   seoHomeTitle: 'GrupoTrevisan | Outsourcing de Equipamentos de TI',

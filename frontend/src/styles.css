@@ -64,11 +64,11 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); line-height: 1.25; le
   font-weight: 600;
 }
 .toolbar a:hover { opacity: .72; }
-.socials { display: flex; gap: 10px; align-items: center; }
-.socials a {
-  width: 22px; height: 22px; display: grid; place-items: center;
+.toolbar-instagram {
+  width: 28px; height: 28px; display: grid; place-items: center;
   color: var(--toolbar-text, var(--navy));
 }
+.toolbar-instagram svg { width: 19px; height: 19px; }
 
 /* Header */
 .header {
@@ -595,7 +595,6 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); line-height: 1.25; le
   .container, .toolbar-inner { width: min(100% - 32px, 540px); }
   .toolbar { height: 36px; }
   .toolbar-inner { justify-content: space-between; gap: 10px; font-size: 12px; }
-  .toolbar .socials { display: none; }
   .nav { height: 68px; }
   .logo { min-width: 0; font-size: clamp(19px, 5.7vw, 24px); }
   .logo img { max-width: 220px; max-height: 38px; object-fit: contain; }

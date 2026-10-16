@@ -135,6 +135,11 @@ export default function Admin() {
               <div className="field"><label>E-mail</label><input value={form.email || ''} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
               <div className="field"><label>Endereco</label><input value={form.address || ''} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
             </div>
+            <div className="field" style={{ marginTop: 12 }}>
+              <label htmlFor="instagram-handle">@ do Instagram</label>
+              <input id="instagram-handle" placeholder="@grupotrevisan" pattern="@?[A-Za-z0-9._]{1,30}" title="Digite apenas o @ do perfil, por exemplo @grupotrevisan" value={form.instagramHandle || ''} onChange={(e) => setForm({ ...form, instagramHandle: e.target.value })} />
+              <small>O ícone aparece na barra superior após salvar. Deixe vazio para ocultar.</small>
+            </div>
             <div className="theme-colors">
               <h4>Cores das barras</h4>
               <p className="admin-help">Escolha uma cor para cada área. O texto se ajusta para continuar legível. Clique em Salvar marca para publicar.</p>

@@ -87,6 +87,10 @@ export default function Home() {
     ...themeColor(s.headerColor, '--header-bg', '--header-text'),
     ...themeColor(s.footerColor, '--footer-bg', '--footer-text'),
   };
+  const instagramHandle = String(s.instagramHandle || '').trim().replace(/^@/, '');
+  const instagramUrl = /^[A-Za-z0-9._]{1,30}$/.test(instagramHandle)
+    ? `https://www.instagram.com/${instagramHandle}/`
+    : '';
 
   return (
     <div style={themeStyle}>
@@ -94,12 +98,15 @@ export default function Home() {
         <div className="toolbar-inner">
           <a href="#contato">Fale conosco</a>
           <a href={`tel:${(s.phone || '(11) 99510-6569').replace(/\D/g, '')}`}>{s.phone || '(11) 99510-6569'}</a>
-          <div className="socials">
-            <a href="#" aria-label="LinkedIn">in</a>
-            <a href="#" aria-label="Instagram">ig</a>
-            <a href="#" aria-label="Facebook">f</a>
-            <a href="#" aria-label="YouTube">yt</a>
-          </div>
+          {instagramUrl && (
+            <a className="toolbar-instagram" href={instagramUrl} target="_blank" rel="noopener noreferrer" aria-label={`Instagram @${instagramHandle}`} title={`Instagram @${instagramHandle}`}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="2.5" y="2.5" width="19" height="19" rx="5" />
+                <circle cx="12" cy="12" r="4" />
+                <circle cx="17.5" cy="6.5" r=".75" fill="currentColor" stroke="none" />
+              </svg>
+            </a>
+          )}
         </div>
       </div>
 
