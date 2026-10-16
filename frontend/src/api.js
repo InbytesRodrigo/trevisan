@@ -10,13 +10,14 @@ export function setToken(token) {
 }
 
 export async function api(path, options = {}) {
+  const { auth = true, ...requestOptions } = options;
   const headers = { ...(options.headers || {}) };
   const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (auth && token) headers.Authorization = `Bearer ${token}`;
   if (!(options.body instanceof FormData) && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
   }
-  const res = await fetch(path, { ...options, headers });
+  const res = await fetch(path, { ...requestOptions, headers });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Erro na requisicao');
   return data;

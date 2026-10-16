@@ -42,6 +42,7 @@ export default function ChatWidget({ onClose, settings }) {
 
   const sendMessage = (payload) => api(`/api/chats/${chatRef.current.id}/messages`, {
     method: 'POST',
+    auth: false,
     headers: { 'x-visitor-key': chatRef.current.visitorKey },
     body: JSON.stringify(payload),
   });
@@ -83,8 +84,8 @@ export default function ChatWidget({ onClose, settings }) {
         try {
           const headers = { 'x-visitor-key': saved.visitorKey };
           const [existing, history] = await Promise.all([
-            api(`/api/chats/${saved.id}`, { headers }),
-            api(`/api/chats/${saved.id}/messages`, { headers }),
+            api(`/api/chats/${saved.id}`, { headers, auth: false }),
+            api(`/api/chats/${saved.id}/messages`, { headers, auth: false }),
           ]);
           if (!aliveRef.current) return;
           chatRef.current = { ...existing, visitorKey: saved.visitorKey };
@@ -104,6 +105,7 @@ export default function ChatWidget({ onClose, settings }) {
       if (chatRef.current || !aliveRef.current) return;
       const created = await api('/api/chats', {
         method: 'POST',
+        auth: false,
         body: JSON.stringify({ visitorName: 'Visitante', visitorPage: window.location.pathname }),
       });
       if (!aliveRef.current) return;
@@ -113,22 +115,26 @@ export default function ChatWidget({ onClose, settings }) {
       setTimeout(runFlow, 400);
     })().catch(() => setError('Não foi possível conectar. Feche e abra o chat para tentar novamente.'));
 
-    const timer = setInterval(async () => {
+    const refreshMessages = async () => {
       const current = chatRef.current;
       if (!current || !aliveRef.current) return;
       try {
         const headers = { 'x-visitor-key': current.visitorKey };
         const [history, details] = await Promise.all([
-          api(`/api/chats/${current.id}/messages`, { headers }),
-          api(`/api/chats/${current.id}`, { headers }),
+          api(`/api/chats/${current.id}/messages`, { headers, auth: false }),
+          api(`/api/chats/${current.id}`, { headers, auth: false }),
         ]);
         if (!aliveRef.current) return;
         setMessages(history);
         setChat({ ...details, visitorKey: current.visitorKey });
         setError('');
       } catch {}
-    }, 4000);
-    return () => { aliveRef.current = false; clearInterval(timer); };
+    };
+    const timer = setInterval(refreshMessages, 2000);
+    const wake = () => { if (document.visibilityState === 'visible') refreshMessages(); };
+    window.addEventListener('focus', wake);
+    document.addEventListener('visibilitychange', wake);
+    return () => { aliveRef.current = false; clearInterval(timer); window.removeEventListener('focus', wake); document.removeEventListener('visibilitychange', wake); };
   }, []);
 
   const send = async (event) => {
