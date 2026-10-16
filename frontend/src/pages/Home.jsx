@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../App.jsx';
 import { api } from '../api.js';
 import ChatWidget from '../components/ChatWidget.jsx';
+import Testimonials from '../components/Testimonials.jsx';
 import { readChatSession } from '../chatSession.js';
 import { themeColor } from '../theme.js';
 
@@ -143,6 +144,7 @@ export default function Home() {
                 <a href="#contato" onClick={closeMenu}>Quem somos</a>
                 <a href="#contato" onClick={closeMenu}>Trabalhe conosco</a>
                 <a href="#contato" onClick={closeMenu}>ESG</a>
+                <a href="#avaliacoes" onClick={closeMenu}>Avaliações</a>
               </div>
             </li>
             <li><a href="#contato" onClick={closeMenu}>Contato</a></li>
@@ -217,16 +219,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="section awards">
-        <div className="container">
-          <h2>Reconhecimento</h2>
-          <div className="seals">
-            {['Valor 1000', 'Exame Melhores', 'GHG Protocol', 'Ranking TI', 'Qualidade', 'Inovacao'].map((n) => (
-              <div className="seal" key={n}>{n}</div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <Testimonials />
 
       <section className="section" id="contato">
         <div className="container contact-wrap">
@@ -286,6 +279,7 @@ export default function Home() {
               <li><a href="#contato">Quem somos</a></li>
               <li><a href="#contato">Politica de privacidade</a></li>
               <li><a href="#contato">Trabalhe conosco</a></li>
+              <li><a href="#avaliacoes">Avaliações</a></li>
             </ul>
           </div>
           <div>

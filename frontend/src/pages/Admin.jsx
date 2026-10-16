@@ -5,6 +5,7 @@ import { api } from '../api.js';
 import CatalogAdmin from './CatalogAdmin.jsx';
 import AnalyticsPanel from './AnalyticsPanel.jsx';
 import Seller from './Seller.jsx';
+import ReviewsAdmin from './ReviewsAdmin.jsx';
 import { useLeadFeed } from '../useLeadFeed.js';
 
 function Uploader({ type, onDone, label, accept }) {
@@ -50,7 +51,7 @@ export default function Admin() {
   const nav = useNavigate();
   const [tab, setTab] = useState(() => {
     const requested = new URLSearchParams(window.location.search).get('tab');
-    return ['marca', 'seo', 'chat', 'leads', 'analytics', 'midia', 'produtos', 'equipe', 'acesso'].includes(requested) ? requested : 'marca';
+    return ['marca', 'seo', 'chat', 'leads', 'analytics', 'avaliacoes', 'midia', 'produtos', 'equipe', 'acesso'].includes(requested) ? requested : 'marca';
   });
   const [form, setForm] = useState(settings || {});
   const [files, setFiles] = useState([]);
@@ -107,6 +108,7 @@ export default function Admin() {
         <button type="button" className={`tab-button ${tab === 'leads' ? 'active' : ''}`} onClick={() => setTab('leads')}>Leads e conversas{leadFeed.chats.some((chat) => chat.unreadSeller > 0) && <span className="admin-lead-count">{leadFeed.chats.filter((chat) => chat.unreadSeller > 0).length}</span>}</button>
         <button type="button" className={'admin-sound-button' + (leadFeed.soundReady ? ' on' : '')} onClick={leadFeed.soundReady ? leadFeed.disableSound : leadFeed.enableSound}>{leadFeed.soundReady ? '🔊 Avisos sonoros ligados' : '🔔 Ativar som dos leads'}</button>
         <button type="button" className={`tab-button ${tab === 'analytics' ? 'active' : ''}`} onClick={() => setTab('analytics')}>Acessos e cliques</button>
+        <button type="button" className={`tab-button ${tab === 'avaliacoes' ? 'active' : ''}`} onClick={() => setTab('avaliacoes')}>Aprovações de avaliações</button>
         <button type="button" className={`tab-button ${tab === 'chat' ? 'active' : ''}`} onClick={() => setTab('chat')}>Fluxo do chat</button>
         <button type="button" className={`tab-button ${tab === 'marca' ? 'active' : ''}`} onClick={() => setTab('marca')}>Marca e logo</button>
         <button type="button" className={`tab-button ${tab === 'seo' ? 'active' : ''}`} onClick={() => setTab('seo')}>SEO e Google</button>
@@ -122,7 +124,7 @@ export default function Admin() {
       <div className="main">
         {leadFeed.notice && tab !== 'leads' && <button className="popup lead-popup lead-popup-action" type="button" onClick={() => setTab('leads')}><strong>{leadFeed.notice}</strong><span>Abrir atendimento →</span></button>}
         {leadFeed.error && tab !== 'leads' && <div className="lead-error" role="alert">Não foi possível atualizar os leads. <button type="button" onClick={leadFeed.refresh}>Tentar novamente</button></div>}
-        <h1>{({ marca: 'Painel da marca', seo: 'SEO e Google', chat: 'Fluxo do chat', leads: 'Leads e conversas', analytics: 'Acessos e cliques', midia: 'Biblioteca de arquivos', produtos: 'Produtos e equipamentos', equipe: 'Equipe', acesso: 'Acesso admin' })[tab]}</h1>
+        <h1>{({ marca: 'Painel da marca', seo: 'SEO e Google', chat: 'Fluxo do chat', leads: 'Leads e conversas', analytics: 'Acessos e cliques', avaliacoes: 'Aprovações de avaliações', midia: 'Biblioteca de arquivos', produtos: 'Produtos e equipamentos', equipe: 'Equipe', acesso: 'Acesso admin' })[tab]}</h1>
         {msg && <div className="ok" style={{ marginBottom: 12 }}>{msg}</div>}
 
         {tab === 'acesso' && (
@@ -332,6 +334,8 @@ export default function Admin() {
         )}
 
         {tab === 'analytics' && <AnalyticsPanel />}
+
+        {tab === 'avaliacoes' && <ReviewsAdmin />}
 
         {tab === 'leads' && <Seller embedded sharedFeed={leadFeed} />}
 

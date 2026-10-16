@@ -3,6 +3,7 @@ import { getStore } from '@netlify/blobs';
 import seo from '../../backend/seo.js';
 import analytics from '../../backend/analytics.js';
 import chatFlow from '../../backend/chat-flow.js';
+import reviews from '../../backend/reviews.js';
 import { addUser, changeAdminCredentials, currentUser, login, publicUser } from '../lib/auth.mjs';
 import { defaultSettings, deleteDocument, getCatalog, getDocument, getSingleton, listAnalyticsEvents, listChatMessages, listDocuments, putDocument, putSingleton } from '../lib/store.mjs';
 
@@ -200,6 +201,34 @@ export default async function handler(request) {
       const body = await getBody(request);
       const item = { id: randomUUID(), ...body, createdAt: Date.now() };
       await putDocument('leads', item.id, item); return json(item);
+    }
+
+    if (method === 'GET' && path === '/reviews') {
+      const items = await listDocuments('reviews');
+      return json(items.filter((item) => item.status === 'approved').sort((a, b) => (b.approvedAt || 0) - (a.approvedAt || 0)).slice(0, 30));
+    }
+    if (method === 'POST' && path === '/reviews') {
+      const clean = reviews.cleanReview(await getBody(request));
+      if (clean?.ignored) return json({ ok: true }, 201);
+      if (!clean) return fail('Informe nome, empresa, avaliação com ao menos 20 caracteres e autorize a publicação.');
+      const item = { id: randomUUID(), ...clean, status: 'pending', createdAt: Date.now(), approvedAt: null };
+      await putDocument('reviews', item.id, item);
+      return json({ ok: true }, 201);
+    }
+    if (method === 'GET' && path === '/reviews/moderation') {
+      const { error } = await permission(request, 'admin'); if (error) return error;
+      return json((await listDocuments('reviews')).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+    }
+    if (method === 'PATCH' && parts[0] === 'reviews' && parts[1] && parts.length === 2) {
+      const { error } = await permission(request, 'admin'); if (error) return error;
+      const item = await getDocument('reviews', safeId(parts[1]));
+      if (!item) return fail('Avaliação não encontrada', 404);
+      const body = await getBody(request);
+      if (!['pending', 'approved', 'rejected'].includes(body.status)) return fail('Status inválido');
+      item.status = body.status;
+      item.approvedAt = body.status === 'approved' ? Date.now() : null;
+      await putDocument('reviews', item.id, item);
+      return json(item);
     }
 
     if (method === 'POST' && path === '/analytics/events') {

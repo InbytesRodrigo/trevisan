@@ -13,6 +13,7 @@ const catalogDefaults = require('./catalog-defaults.json');
 const { siteBase, escapeHtml, renderSeoTags } = require('./seo');
 const analytics = require('./analytics');
 const chatFlow = require('./chat-flow');
+const reviews = require('./reviews');
 
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || randomBytes(48).toString('hex');
@@ -242,6 +243,7 @@ readDB('files', []);
 readDB('chats', []);
 readDB('messages', []);
 readDB('leads', []);
+readDB('reviews', []);
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
@@ -507,6 +509,35 @@ app.post('/api/leads', (req, res) => {
   writeDB('leads', leads);
   io.to('sellers').emit('lead:new', lead);
   res.json(lead);
+});
+
+app.get('/api/reviews', (_req, res) => {
+  res.json(readDB('reviews', []).filter((item) => item.status === 'approved').sort((a, b) => (b.approvedAt || 0) - (a.approvedAt || 0)).slice(0, 30));
+});
+
+app.post('/api/reviews', (req, res) => {
+  const clean = reviews.cleanReview(req.body);
+  if (clean?.ignored) return res.status(201).json({ ok: true });
+  if (!clean) return res.status(400).json({ error: 'Informe nome, empresa, avaliação com ao menos 20 caracteres e autorize a publicação.' });
+  const items = readDB('reviews', []);
+  items.unshift({ id: uuidv4(), ...clean, status: 'pending', createdAt: Date.now(), approvedAt: null });
+  writeDB('reviews', items);
+  res.status(201).json({ ok: true });
+});
+
+app.get('/api/reviews/moderation', auth, adminOnly, (_req, res) => {
+  res.json(readDB('reviews', []).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+});
+
+app.patch('/api/reviews/:id', auth, adminOnly, (req, res) => {
+  if (!['pending', 'approved', 'rejected'].includes(req.body?.status)) return res.status(400).json({ error: 'Status inválido' });
+  const items = readDB('reviews', []);
+  const item = items.find((entry) => entry.id === req.params.id);
+  if (!item) return res.status(404).json({ error: 'Avaliação não encontrada' });
+  item.status = req.body.status;
+  item.approvedAt = item.status === 'approved' ? Date.now() : null;
+  writeDB('reviews', items);
+  res.json(item);
 });
 
 app.get('/api/chats', auth, (_req, res) => {
