@@ -6,6 +6,7 @@ import Catalog from './pages/Catalog.jsx';
 import Login from './pages/Login.jsx';
 import Admin from './pages/Admin.jsx';
 import Seller from './pages/Seller.jsx';
+import ContactBubbles from './components/ContactBubbles.jsx';
 import { trackClickedItem, trackSiteEvent } from './analytics.js';
 
 const Ctx = createContext(null);
@@ -48,6 +49,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const loc = useLocation();
+  const publicPage = !/^\/(admin|vendedor|login)(\/|$)/.test(loc.pathname);
 
   useEffect(() => {
     if (/^\/(admin|vendedor|login)(\/|$)/.test(loc.pathname)) return;
@@ -137,6 +139,7 @@ export default function App() {
           }
         />
       </Routes>
+      {publicPage && settings && <ContactBubbles settings={settings} />}
     </Ctx.Provider>
   );
 }
