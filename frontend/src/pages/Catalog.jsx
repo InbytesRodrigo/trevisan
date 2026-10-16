@@ -29,6 +29,10 @@ export default function Catalog() {
   const navigate = useNavigate();
   const { productId } = useParams();
   const brand = settings?.brandName || 'GrupoTrevisan';
+  const brandLogo = settings?.logo || '';
+  const footerLogo = settings?.footerLogo || brandLogo;
+  const phone = settings?.phone || '(11) 99510-6569';
+  const whatsappNumber = String(settings?.whatsapp || '').replace(/\D/g, '');
   const [params] = useSearchParams();
   const category = params.get('categoria') || '';
   const [filters, setFilters] = useState(emptyFilters);
@@ -162,12 +166,16 @@ export default function Catalog() {
 
   return (
     <div className="catalog-page">
+      <div className="catalog-topline"><div className="container catalog-topline-inner"><span>Soluções em tecnologia para empresas</span><a href={`tel:${phone.replace(/\D/g, '')}`}>{phone}</a></div></div>
       <header className="catalog-header">
         <div className="container catalog-header-inner">
-          <Link className="catalog-brand" to="/"><span className="catalog-brand-mark">GT</span><span>{brand}</span></Link>
+          <Link className="catalog-brand" to="/" aria-label={`${brand} — página inicial`}>
+            {brandLogo ? <img src={brandLogo} alt={brand} /> : <><span className="catalog-brand-mark">GT</span><span>{brand}</span></>}
+          </Link>
           <div className="catalog-header-actions">
-            <Link to="/">Voltar ao site</Link>
-            <Link to="/admin?tab=produtos">Área administrativa</Link>
+            <Link className="catalog-nav-home" to="/">Página inicial</Link>
+            <span className="catalog-nav-current" aria-current="page">Equipamentos</span>
+            <Link className="catalog-nav-admin" to="/admin?tab=produtos">Área administrativa</Link>
             <button className="catalog-cart-button" type="button" onClick={() => setCartOpen(true)} aria-label={`Abrir carrinho com ${count} itens`}>
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" /></svg>
               <span className="catalog-cart-count">{count}</span>
@@ -176,7 +184,21 @@ export default function Catalog() {
         </div>
       </header>
 
-      <section className="catalog-hero"><div className="container"><h1>{selected?.name || 'Impressoras e Multifuncionais'}</h1><p>{selected?.description || 'Escolha os equipamentos, monte seu carrinho e finalize o pedido pelo WhatsApp.'}</p></div></section>
+      <section className="catalog-hero">
+        <div className="container catalog-hero-inner">
+          <div className="catalog-hero-copy">
+            <span className="catalog-eyebrow"><span /> CATÁLOGO GRUPOTREVISAN</span>
+            <h1>{selected?.name || <>Equipamentos para <em>levar sua empresa mais longe.</em></>}</h1>
+            <p>{selected?.description || 'Impressoras, multifuncionais e soluções de TI para a sua operação. Escolha os equipamentos e envie seu pedido pelo WhatsApp.'}</p>
+            <div className="catalog-hero-tags"><span>Equipamentos corporativos</span><span>Atendimento pelo WhatsApp</span></div>
+          </div>
+          <div className="catalog-hero-visual" aria-hidden="true">
+            <div className="catalog-hero-orbit catalog-hero-orbit-one" />
+            <div className="catalog-hero-orbit catalog-hero-orbit-two" />
+            <div className="catalog-hero-display"><span className="catalog-display-label">SOLUÇÕES TREVISAN</span><svg viewBox="0 0 160 160" fill="none"><rect x="32" y="22" width="96" height="48" rx="8" stroke="currentColor" strokeWidth="5"/><path d="M34 61h92a20 20 0 0 1 20 20v39H14V81a20 20 0 0 1 20-20Z" stroke="currentColor" strokeWidth="5"/><rect x="36" y="105" width="88" height="40" rx="6" fill="#fff" stroke="currentColor" strokeWidth="5"/><path d="M54 119h52M54 131h36" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/><circle cx="122" cy="84" r="5" fill="#21c7f2"/></svg><strong>TreviPrinter</strong><small>Tecnologia que acompanha seu negócio</small></div>
+          </div>
+        </div>
+      </section>
 
       <main className="container catalog-layout">
         <aside className={`catalog-filters ${filtersOpen ? 'is-open' : ''}`} aria-label="Filtros de produtos">
@@ -218,7 +240,7 @@ export default function Catalog() {
         </section>
       </main>
 
-      <footer className="catalog-footer"><div className="container"><p>{brand} — Outsourcing e equipamentos de TI</p><small>Pedidos finalizados via WhatsApp.</small></div></footer>
+      <footer className="catalog-footer"><div className="container catalog-footer-inner"><div className="catalog-footer-brand">{footerLogo ? <Link to="/"><img src={footerLogo} alt={brand} /></Link> : <strong>{brand}</strong>}<p>Outsourcing e equipamentos de TI para empresas.</p></div><div className="catalog-footer-contact"><strong>Fale com a gente</strong><a href={`tel:${phone.replace(/\D/g, '')}`}>{phone}</a>{whatsappNumber && <a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noopener noreferrer">Conversar pelo WhatsApp ↗</a>}</div><div className="catalog-footer-links"><strong>Explore</strong><Link to="/">Página inicial</Link><Link to="/equipamentos">Equipamentos</Link></div></div><div className="container catalog-footer-bottom">© {new Date().getFullYear()} {brand}. Todos os direitos reservados.</div></footer>
 
       {cartOpen && <><button type="button" className="catalog-overlay" aria-label="Fechar carrinho" onClick={() => setCartOpen(false)} /><aside className="catalog-drawer" aria-label="Seu carrinho">
         <div className="catalog-drawer-head"><h2>Seu carrinho</h2><button className="catalog-icon-button" type="button" onClick={() => setCartOpen(false)} aria-label="Fechar carrinho">×</button></div>
