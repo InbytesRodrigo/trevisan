@@ -13,6 +13,20 @@ const SEG_IMG = {
   Governo: '/img/governo.jpg',
 };
 
+function readableTextColor(hex) {
+  const channels = [1, 3, 5].map((start) => {
+    const value = parseInt(hex.slice(start, start + 2), 16) / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+  return luminance > 0.179 ? '#000000' : '#ffffff';
+}
+
+function themeColor(value, backgroundVariable, textVariable) {
+  if (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)) return {};
+  return { [backgroundVariable]: value, [textVariable]: readableTextColor(value) };
+}
+
 export default function Home() {
   const { settings, products, solutions, segments } = useApp();
   const s = settings || {};
@@ -68,9 +82,14 @@ export default function Home() {
     backgroundSize: 'cover',
     backgroundPosition: 'center right',
   };
+  const themeStyle = {
+    ...themeColor(s.toolbarColor, '--toolbar-bg', '--toolbar-text'),
+    ...themeColor(s.headerColor, '--header-bg', '--header-text'),
+    ...themeColor(s.footerColor, '--footer-bg', '--footer-text'),
+  };
 
   return (
-    <div>
+    <div style={themeStyle}>
       <div className="toolbar">
         <div className="toolbar-inner">
           <a href="#contato">Fale conosco</a>

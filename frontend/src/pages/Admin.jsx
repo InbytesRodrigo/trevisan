@@ -28,6 +28,19 @@ function Uploader({ type, onDone, label, accept }) {
   );
 }
 
+function ThemeColorField({ label, value, fallback, onChange }) {
+  return (
+    <div className="theme-color-field">
+      <label>{label}</label>
+      <div className="theme-color-control">
+        <input type="color" aria-label={`Cor de ${label.toLowerCase()}`} value={value || fallback} onChange={(e) => onChange(e.target.value)} />
+        <span>{value || 'Cor padrão'}</span>
+        {value && <button type="button" className="theme-color-reset" onClick={() => onChange('')}>Restaurar padrão</button>}
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { settings, logout, refresh, user } = useApp();
   const nav = useNavigate();
@@ -121,6 +134,15 @@ export default function Admin() {
             <div className="row" style={{ marginTop: 12 }}>
               <div className="field"><label>E-mail</label><input value={form.email || ''} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
               <div className="field"><label>Endereco</label><input value={form.address || ''} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+            </div>
+            <div className="theme-colors">
+              <h4>Cores das barras</h4>
+              <p className="admin-help">Escolha uma cor para cada área. O texto se ajusta para continuar legível. Clique em Salvar marca para publicar.</p>
+              <div className="theme-color-grid">
+                <ThemeColorField label="Barra superior de contato" value={form.toolbarColor} fallback="#ffffff" onChange={(color) => setForm((current) => ({ ...current, toolbarColor: color }))} />
+                <ThemeColorField label="Cabeçalho e menu" value={form.headerColor} fallback="#18118d" onChange={(color) => setForm((current) => ({ ...current, headerColor: color }))} />
+                <ThemeColorField label="Barra do rodapé" value={form.footerColor} fallback="#0b0a4a" onChange={(color) => setForm((current) => ({ ...current, footerColor: color }))} />
+              </div>
             </div>
             <div style={{ marginTop: 18 }}>
               <label>Logomarca do cabeçalho</label>
