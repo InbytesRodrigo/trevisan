@@ -113,7 +113,7 @@ export default function Home() {
 
       <header className="header">
         <div className="container nav">
-          <a className="logo" href="/">
+          <a className="logo site-header-logo" href="/" style={{ '--site-logo-width': `${Number(s.logoWidth) || 220}px` }}>
             {s.logo ? <img src={s.logo} alt={s.brandName} /> : (
               <>
                 <span className="logo-mark" />

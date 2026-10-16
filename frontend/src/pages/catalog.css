@@ -18,7 +18,7 @@
 .catalog-header { background: #fff; color: var(--catalog-brand); position: sticky; top: 0; z-index: 40; box-shadow: 0 8px 24px rgba(5,27,78,.07); }
 .catalog-header-inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 88px; }
 .catalog-brand { display: flex; align-items: center; gap: 12px; min-width: 0; color: var(--catalog-brand); font-weight: 800; font-size: 21px; }
-.catalog-brand img { width: min(245px, 34vw); max-height: 70px; object-fit: contain; }
+.catalog-brand img { width: min(var(--site-logo-width, 220px), 42vw); max-height: 70px; object-fit: contain; }
 .catalog-brand-mark { background: linear-gradient(135deg, var(--catalog-accent), var(--catalog-brand-2)); color: #fff; padding: 7px 11px; border-radius: 12px; font-size: 15px; font-weight: 800; letter-spacing: .5px; }
 .catalog-header-actions { display: flex; align-items: center; gap: 22px; font-size: 14px; font-weight: 700; }
 .catalog-header-actions a:hover { color: var(--catalog-brand-2); }
@@ -155,7 +155,7 @@
   .catalog-topline-inner > span { display: none; }
   .catalog-header-inner { gap: 10px; min-height: 72px; }
   .catalog-brand { min-width: 0; gap: 9px; font-size: clamp(16px, 4.5vw, 19px); }
-  .catalog-brand img { width: clamp(150px, 47vw, 200px); max-height: 58px; }
+  .catalog-brand img { width: min(var(--site-logo-width, 220px), 47vw); max-height: 58px; }
   .catalog-brand > span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .catalog-brand-mark { flex: 0 0 auto; }
   .catalog-header-actions { gap: 10px; }

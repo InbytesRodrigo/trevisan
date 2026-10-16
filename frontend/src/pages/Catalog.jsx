@@ -169,7 +169,7 @@ export default function Catalog() {
       <div className="catalog-topline"><div className="container catalog-topline-inner"><span>Soluções em tecnologia para empresas</span><a href={`tel:${phone.replace(/\D/g, '')}`}>{phone}</a></div></div>
       <header className="catalog-header">
         <div className="container catalog-header-inner">
-          <Link className="catalog-brand" to="/" aria-label={`${brand} — página inicial`}>
+          <Link className="catalog-brand" to="/" aria-label={`${brand} — página inicial`} style={{ '--site-logo-width': `${Number(settings?.logoWidth) || 220}px` }}>
             {brandLogo ? <img src={brandLogo} alt={brand} /> : <><span className="catalog-brand-mark">GT</span><span>{brand}</span></>}
           </Link>
           <div className="catalog-header-actions">

@@ -166,6 +166,12 @@ export default function Admin() {
               <label>Logomarca do cabeçalho</label>
               <Uploader type="logo" label="Enviar logomarca" accept="image/*" onDone={(f) => setForm({ ...form, logo: f.url })} />
               {form.logo && <div className="brand-upload-preview"><img src={form.logo} alt="Logomarca do cabeçalho" /><button className="btn ghost" type="button" onClick={() => setForm({ ...form, logo: '' })}>Remover</button></div>}
+              <div className="field logo-size-control">
+                <label htmlFor="logo-width">Tamanho do logo no topo: {Number(form.logoWidth) || 220} px</label>
+                <input id="logo-width" type="range" min="80" max="360" step="10" value={Number(form.logoWidth) || 220} onChange={(e) => setForm((current) => ({ ...current, logoWidth: Number(e.target.value) }))} />
+                <small>Arraste para diminuir ou aumentar. O tamanho se adapta à tela do celular.</small>
+                {form.logo && <div className="logo-size-preview"><img src={form.logo} alt="Prévia do tamanho do logo" style={{ width: `${Number(form.logoWidth) || 220}px` }} /></div>}
+              </div>
             </div>
             <div style={{ marginTop: 18 }}>
               <label>Logo do rodapé</label>
