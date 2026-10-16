@@ -3,6 +3,8 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useApp } from '../App.jsx';
 import { api } from '../api.js';
 import CatalogAdmin from './CatalogAdmin.jsx';
+import AnalyticsPanel from './AnalyticsPanel.jsx';
+import Seller from './Seller.jsx';
 
 function Uploader({ type, onDone, label, accept }) {
   const [busy, setBusy] = useState(false);
@@ -44,7 +46,10 @@ function ThemeColorField({ label, value, fallback, onChange }) {
 export default function Admin() {
   const { settings, logout, refresh, user } = useApp();
   const nav = useNavigate();
-  const [tab, setTab] = useState(() => ['produtos', 'catalogo'].includes(new URLSearchParams(window.location.search).get('tab')) ? 'produtos' : 'marca');
+  const [tab, setTab] = useState(() => {
+    const requested = new URLSearchParams(window.location.search).get('tab');
+    return ['marca', 'seo', 'chat', 'leads', 'analytics', 'midia', 'produtos', 'equipe', 'acesso'].includes(requested) ? requested : 'marca';
+  });
   const [form, setForm] = useState(settings || {});
   const [files, setFiles] = useState([]);
   const [users, setUsers] = useState([]);
@@ -60,9 +65,15 @@ export default function Admin() {
 
   const saveBrand = async (e) => {
     e.preventDefault();
-    await api('/api/settings', { method: 'PUT', body: JSON.stringify(form) });
-    await refresh();
-    setMsg('Marca atualizada');
+    if (tab === 'chat' && (form.chatFlow || []).some((step) => step.kind === 'audio' && !step.audioUrl)) {
+      window.alert('Envie um arquivo para cada etapa de áudio antes de salvar.');
+      return;
+    }
+    try {
+      await api('/api/settings', { method: 'PUT', body: JSON.stringify(form) });
+      await refresh();
+      setMsg('Configurações atualizadas');
+    } catch (error) { window.alert(error.message); }
   };
 
   const addUser = async (e) => {
@@ -91,20 +102,22 @@ export default function Admin() {
           <span className="logo-mark" />
           Admin
         </div>
-        <NavLink to="#" className={tab === 'marca' ? 'active' : ''} onClick={() => setTab('marca')}>Marca e logo</NavLink>
-        <NavLink to="#" className={tab === 'seo' ? 'active' : ''} onClick={() => setTab('seo')}>SEO e Google</NavLink>
-        <NavLink to="#" className={tab === 'chat' ? 'active' : ''} onClick={() => setTab('chat')}>Fluxo do chat</NavLink>
-        <NavLink to="#" className={tab === 'midia' ? 'active' : ''} onClick={() => setTab('midia')}>Uploads</NavLink>
-        <NavLink to="#" className={tab === 'produtos' ? 'active' : ''} onClick={() => setTab('produtos')}>Produtos e equipamentos</NavLink>
-        <NavLink to="#" className={tab === 'equipe' ? 'active' : ''} onClick={() => setTab('equipe')}>Equipe</NavLink>
-        <NavLink to="#" className={tab === 'acesso' ? 'active' : ''} onClick={() => setTab('acesso')}>Acesso admin</NavLink>
-        <NavLink to="/vendedor">Chat ao vivo</NavLink>
+        <button type="button" className={`tab-button ${tab === 'leads' ? 'active' : ''}`} onClick={() => setTab('leads')}>Leads e conversas</button>
+        <button type="button" className={`tab-button ${tab === 'analytics' ? 'active' : ''}`} onClick={() => setTab('analytics')}>Acessos e cliques</button>
+        <button type="button" className={`tab-button ${tab === 'chat' ? 'active' : ''}`} onClick={() => setTab('chat')}>Fluxo do chat</button>
+        <button type="button" className={`tab-button ${tab === 'marca' ? 'active' : ''}`} onClick={() => setTab('marca')}>Marca e logo</button>
+        <button type="button" className={`tab-button ${tab === 'seo' ? 'active' : ''}`} onClick={() => setTab('seo')}>SEO e Google</button>
+        <button type="button" className={`tab-button ${tab === 'midia' ? 'active' : ''}`} onClick={() => setTab('midia')}>Uploads</button>
+        <button type="button" className={`tab-button ${tab === 'produtos' ? 'active' : ''}`} onClick={() => setTab('produtos')}>Produtos e equipamentos</button>
+        <button type="button" className={`tab-button ${tab === 'equipe' ? 'active' : ''}`} onClick={() => setTab('equipe')}>Equipe</button>
+        <button type="button" className={`tab-button ${tab === 'acesso' ? 'active' : ''}`} onClick={() => setTab('acesso')}>Acesso admin</button>
+        <NavLink to="/vendedor">Tela cheia do atendimento</NavLink>
         <NavLink to="/">Ver site</NavLink>
         <button className="link" onClick={() => { logout(); nav('/login'); }}>Sair</button>
         <div style={{ marginTop: 'auto', fontSize: 12, opacity: .7 }}>{user?.email}</div>
       </aside>
       <div className="main">
-        <h1>Painel da marca</h1>
+        <h1>{({ marca: 'Painel da marca', seo: 'SEO e Google', chat: 'Fluxo do chat', leads: 'Leads e conversas', analytics: 'Acessos e cliques', midia: 'Biblioteca de arquivos', produtos: 'Produtos e equipamentos', equipe: 'Equipe', acesso: 'Acesso admin' })[tab]}</h1>
         {msg && <div className="ok" style={{ marginBottom: 12 }}>{msg}</div>}
 
         {tab === 'acesso' && (
@@ -212,6 +225,7 @@ export default function Admin() {
                 />
                 Abrir sozinho
               </label>
+              <label className="check" style={{ margin: 0 }}><input type="checkbox" checked={form.chatWhatsappOption === true} onChange={(e) => setForm({ ...form, chatWhatsappOption: e.target.checked })} />Mostrar opção de continuar no WhatsApp</label>
             </div>
             <div className="row" style={{ marginTop: 12 }}>
               <div className="field">
@@ -238,10 +252,13 @@ export default function Admin() {
               {form.chatAgentPhoto && <img src={form.chatAgentPhoto} alt="" style={{ height: 56, width: 56, borderRadius: '50%', objectFit: 'cover', marginTop: 8 }} />}
             </div>
             <h3 style={{ margin: '22px 0 10px' }}>Fluxo da conversa</h3>
-            <p className="lead">Use {'{name}'} para o nome do visitante. Aguardar: nada (manda a proxima), nome, telefone, e-mail ou qualquer resposta.</p>
+            <p className="lead">Use {'{name}'} para o nome do visitante. Adicione textos ou áudios gravados; o tempo definido mostra “Digitando” ou “Gravando áudio” antes de enviar. Aguardar: nada, nome, telefone, e-mail ou qualquer resposta.</p>
             {(form.chatFlow || []).map((step, i) => (
-              <div key={step.id || i} className="flow-row">
+              <div key={step.id || i} className="chat-flow-step"><div className="flow-row">
                 <span className="flow-n">{i + 1}</span>
+                <select aria-label={`Tipo da etapa ${i + 1}`} value={step.kind || 'text'} onChange={(e) => {
+                  const next = [...form.chatFlow]; next[i] = { ...next[i], kind: e.target.value }; setForm({ ...form, chatFlow: next });
+                }}><option value="text">Texto</option><option value="audio">Áudio</option></select>
                 <input
                   value={step.text}
                   onChange={(e) => {
@@ -249,7 +266,7 @@ export default function Admin() {
                     next[i] = { ...next[i], text: e.target.value };
                     setForm({ ...form, chatFlow: next });
                   }}
-                  placeholder="Mensagem"
+                  placeholder={step.kind === 'audio' ? 'Legenda do áudio (opcional)' : 'Mensagem'}
                 />
                 <select
                   value={step.waitFor || 'none'}
@@ -275,7 +292,7 @@ export default function Admin() {
                     next[i] = { ...next[i], typingMs: Number(e.target.value) };
                     setForm({ ...form, chatFlow: next });
                   }}
-                  title="Tempo digitando (ms)"
+                  title={step.kind === 'audio' ? 'Tempo gravando áudio (ms)' : 'Tempo digitando (ms)'}
                 />
                 <button
                   type="button"
@@ -284,7 +301,7 @@ export default function Admin() {
                 >
                   x
                 </button>
-              </div>
+              </div>{step.kind === 'audio' && <div className="chat-flow-audio"><Uploader type="chat-audio" label={step.audioUrl ? 'Trocar áudio gravado' : 'Enviar áudio gravado'} accept="audio/mpeg,audio/mp4,audio/ogg,audio/webm,audio/wav,.mp3,.m4a,.ogg,.webm,.wav" onDone={(file) => setForm((current) => ({ ...current, chatFlow: current.chatFlow.map((item, index) => index === i ? { ...item, audioUrl: file.url } : item) }))} />{step.audioUrl && <><audio controls preload="none" src={step.audioUrl} /><button className="btn ghost" type="button" onClick={() => setForm((current) => ({ ...current, chatFlow: current.chatFlow.map((item, index) => index === i ? { ...item, audioUrl: '' } : item) }))}>Remover áudio</button></>}</div>}</div>
             ))}
             <button
               type="button"
@@ -292,7 +309,7 @@ export default function Admin() {
               style={{ marginTop: 10 }}
               onClick={() => setForm({
                 ...form,
-                chatFlow: [...(form.chatFlow || []), { id: `f${Date.now()}`, text: '', waitFor: 'any', typingMs: 1200 }],
+                chatFlow: [...(form.chatFlow || []), { id: `f${Date.now()}`, kind: 'text', text: '', waitFor: 'any', typingMs: 1200 }],
               })}
             >
               + Mensagem
@@ -302,6 +319,10 @@ export default function Admin() {
             </div>
           </form>
         )}
+
+        {tab === 'analytics' && <AnalyticsPanel />}
+
+        {tab === 'leads' && <Seller embedded />}
 
         {tab === 'midia' && (
           <div className="panel">

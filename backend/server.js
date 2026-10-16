@@ -11,10 +11,12 @@ const { randomBytes } = require('node:crypto');
 const { v4: uuidv4 } = require('uuid');
 const catalogDefaults = require('./catalog-defaults.json');
 const { siteBase, escapeHtml, renderSeoTags } = require('./seo');
+const analytics = require('./analytics');
+const chatFlow = require('./chat-flow');
 
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || randomBytes(48).toString('hex');
-const DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(__dirname, 'data');
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 
 [DATA_DIR, UPLOAD_DIR].forEach((dir) => {
@@ -83,6 +85,7 @@ const defaultSettings = {
   chatAgentRole: 'Atendimento',
   chatAgentPhoto: '/img/agent.jpg',
   chatSound: true,
+  chatWhatsappOption: false,
   chatFlow: defaultChatFlow,
 };
 
@@ -482,6 +485,21 @@ app.get('/api/leads', auth, (_req, res) => {
   res.json(readDB('leads', []));
 });
 
+app.post('/api/analytics/events', (req, res) => {
+  const event = analytics.cleanEvent(req.body);
+  if (!event) return res.status(400).json({ error: 'Evento invalido' });
+  const events = readDB('analytics-events', []);
+  events.push({ id: uuidv4(), ...event });
+  writeDB('analytics-events', events);
+  res.status(201).json({ ok: true });
+});
+
+app.get('/api/analytics', auth, adminOnly, (req, res) => {
+  const range = analytics.analyticsRange(req.query.from, req.query.to);
+  if (!range) return res.status(400).json({ error: 'Periodo invalido' });
+  res.json(analytics.summarizeAnalytics(readDB('analytics-events', []), range));
+});
+
 app.post('/api/leads', (req, res) => {
   const leads = readDB('leads', []);
   const lead = { id: uuidv4(), ...req.body, createdAt: Date.now() };
@@ -492,7 +510,17 @@ app.post('/api/leads', (req, res) => {
 });
 
 app.get('/api/chats', auth, (_req, res) => {
-  res.json(readDB('chats', []));
+  res.json(readDB('chats', []).filter((chat) => chat.lastVisitorAt || chat.visitorPhone || chat.visitorEmail));
+});
+
+app.get('/api/chats/:id', (req, res) => {
+  const chat = readDB('chats', []).find((item) => item.id === req.params.id);
+  if (!chat) return res.status(404).json({ error: 'Chat nao encontrado' });
+  let authorized = req.headers['x-visitor-key'] && req.headers['x-visitor-key'] === chat.visitorKey;
+  try { if (req.headers.authorization) authorized = Boolean(jwt.verify(req.headers.authorization.replace(/^Bearer\s+/i, ''), JWT_SECRET)); } catch {}
+  if (!authorized) return res.status(403).json({ error: 'Acesso negado' });
+  const { visitorKey, ...publicChat } = chat;
+  res.json(publicChat);
 });
 
 app.get('/api/chats/:id/messages', (req, res) => {
@@ -513,13 +541,21 @@ app.post('/api/chats/:id/messages', (req, res) => {
   try { if (req.headers.authorization) user = jwt.verify(req.headers.authorization.replace(/^Bearer\s+/i, ''), JWT_SECRET); } catch {}
   if (!user && req.headers['x-visitor-key'] !== chats[idx].visitorKey) return res.status(403).json({ error: 'Acesso negado' });
   const value = String(req.body?.text || '').trim().slice(0, 4000);
-  if (!value) return res.status(400).json({ error: 'Mensagem vazia' });
+  const audioUrl = /^\/uploads\/[a-zA-Z0-9][a-zA-Z0-9._-]{0,139}$/.test(String(req.body.audioUrl || '')) ? String(req.body.audioUrl) : '';
+  if (!value && !audioUrl) return res.status(400).json({ error: 'Mensagem vazia' });
   const automated = Boolean(req.body.automated) && !user;
-  const message = { id: uuidv4(), chatId: chats[idx].id, text: value, from: user || automated ? 'seller' : 'visitor', automated, senderName: user?.name || String(req.body.senderName || chats[idx].visitorName).slice(0, 100), createdAt: Date.now() };
+  const chatSettings = automated ? { ...defaultSettings, ...readDB('settings', defaultSettings) } : null;
+  if (automated && !chatFlow.validAutomatedStep(req.body, chats[idx], chatSettings)) return res.status(403).json({ error: 'Etapa automatica invalida' });
   const messages = readDB('messages', []);
+  const flowStepId = automated ? String(req.body.flowStepId || '').slice(0, 80) : '';
+  if (flowStepId) {
+    const duplicate = messages.find((item) => item.chatId === chats[idx].id && item.flowStepId === flowStepId && item.automated);
+    if (duplicate) return res.json(duplicate);
+  }
+  const message = { id: uuidv4(), chatId: chats[idx].id, text: value, audioUrl, from: user || automated ? 'seller' : 'visitor', automated, flowStepId, senderName: user?.name || (automated ? String(chatSettings.chatAgentName || 'Atendimento').slice(0, 100) : chats[idx].visitorName), createdAt: Date.now() };
   messages.push(message);
   writeDB('messages', messages);
-  chats[idx].lastMessage = value;
+  chats[idx].lastMessage = value || 'Mensagem de audio';
   chats[idx].lastMessageAt = message.createdAt;
   if (user) { chats[idx].unreadSeller = 0; chats[idx].unreadVisitor = (chats[idx].unreadVisitor || 0) + 1; chats[idx].status = 'open'; }
   else if (!automated) {
@@ -552,6 +588,7 @@ app.post('/api/chats', (req, res) => {
     visitorName: req.body.visitorName || 'Visitante',
     visitorPhone: req.body.visitorPhone || '',
     visitorEmail: req.body.visitorEmail || '',
+    visitorPage: String(req.body.visitorPage || '/').slice(0, 150),
     status: 'new',
     assignedTo: null,
     assignedName: null,
@@ -593,9 +630,9 @@ app.post('/api/chats/:id/close', auth, (req, res) => {
 
 function chatStatus(chat) {
   if (chat.status === 'closed') return 'closed';
-  if (chat.status === 'new') return 'new';
   const age = Date.now() - (chat.lastVisitorAt || chat.lastMessageAt || chat.createdAt);
   if (chat.unreadSeller > 0 && age > 10 * 60 * 1000) return 'overdue';
+  if (chat.status === 'new') return 'new';
   if (chat.unreadSeller > 0) return 'waiting';
   return 'open';
 }

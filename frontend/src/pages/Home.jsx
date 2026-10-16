@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../App.jsx';
 import { api } from '../api.js';
 import ChatWidget from '../components/ChatWidget.jsx';
+import { readChatSession } from '../chatSession.js';
 
 const SEG_IMG = {
   Logistica: '/img/logistica.jpg',
@@ -30,7 +31,7 @@ function themeColor(value, backgroundVariable, textVariable) {
 export default function Home() {
   const { settings, products, solutions, segments } = useApp();
   const s = settings || {};
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => Boolean(readChatSession()));
   const [menu, setMenu] = useState(false);
   const [activeMenu, setActiveMenu] = useState('');
   const [sent, setSent] = useState(false);
@@ -177,7 +178,7 @@ export default function Home() {
       <div className="container">
         <div className="solutions" id="solucoes">
           {(solutions || []).map((x) => (
-            <a key={x.id} className="sol-card" href="#produtos" style={{ background: x.color }}>
+            <a key={x.id} className="sol-card" href="#produtos" data-track={`Solução: ${x.title}`} style={{ background: x.color }}>
               <div className="kicker">{x.subtitle}</div>
               <h3>{x.title}</h3>
               <p>{x.description}</p>
@@ -199,7 +200,7 @@ export default function Home() {
                 </div>
                 <h3>{x.title}</h3>
                 <p>{x.description}</p>
-                <a className="link-more" href="#contato">Saiba mais</a>
+                <a className="link-more" href="#contato" data-track={`Segmento: ${x.title}`}>Saiba mais</a>
               </article>
             ))}
           </div>
@@ -220,7 +221,7 @@ export default function Home() {
                   <h3>{p.name}</h3>
                   <p>{p.description}</p>
                   <div className="prod-meta">{typeof p.price === 'number' ? p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : p.price || 'Sob consulta'}</div>
-                  <Link className="link-more" to={catalogHighlights.length ? `/equipamentos/${encodeURIComponent(p.id)}` : '/equipamentos'}>Ver equipamento →</Link>
+                  <Link className="link-more" data-track={`Produto em destaque: ${p.name}`} to={catalogHighlights.length ? `/equipamentos/${encodeURIComponent(p.id)}` : '/equipamentos'}>Ver equipamento →</Link>
                 </div>
               </article>
             ))}
@@ -337,7 +338,7 @@ export default function Home() {
           </svg>
         </button>
       )}
-      {open && <ChatWidget onClose={() => setOpen(false)} settings={s} />}
+      {s.chatEnabled !== false && open && <ChatWidget onClose={() => setOpen(false)} settings={s} />}
     </div>
   );
 }

@@ -34,6 +34,7 @@
     "chatAgentRole": "Atendimento",
     "chatAgentPhoto": "/img/agent.jpg",
     "chatSound": true,
+    "chatWhatsappOption": false,
     "chatFlow": [
       {
         "id": "f1",

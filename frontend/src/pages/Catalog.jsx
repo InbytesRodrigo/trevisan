@@ -231,10 +231,10 @@ export default function Catalog() {
             </select>
           </div>
           {loadError ? <div className="catalog-empty">Não foi possível carregar o catálogo. Atualize a página para tentar novamente.</div> : products.length ? <div className="catalog-grid">{products.map((product) => <article className="catalog-card" key={product.id}>
-            <Link className="catalog-card-media" to={`/equipamentos/${encodeURIComponent(product.id)}`} aria-label={`Ver detalhes de ${product.name}`}><img src={imageFor(product)} alt={product.name} loading="lazy" /></Link>
-            <div className="catalog-card-body"><span className="catalog-card-brand">{product.brand}</span><Link className="catalog-card-title" to={`/equipamentos/${encodeURIComponent(product.id)}`}>{product.name}</Link>
+            <Link className="catalog-card-media" to={`/equipamentos/${encodeURIComponent(product.id)}`} aria-label={`Ver detalhes de ${product.name}`} data-track={`Produto: ${product.name}`}><img src={imageFor(product)} alt={product.name} loading="lazy" /></Link>
+            <div className="catalog-card-body"><span className="catalog-card-brand">{product.brand}</span><Link className="catalog-card-title" to={`/equipamentos/${encodeURIComponent(product.id)}`} data-track={`Produto: ${product.name}`}>{product.name}</Link>
               <p>{product.description}</p><div className="catalog-card-price"><strong>{money(product.price)}</strong>{product.oldPrice && <del>{money(product.oldPrice)}</del>}</div>
-              <div className="catalog-card-actions"><button className="catalog-button catalog-primary" type="button" onClick={() => addToCart(product)}>Adicionar ao carrinho</button><button className="catalog-button catalog-whatsapp" type="button" onClick={() => orderProduct(product)}>Pedir pelo WhatsApp</button></div>
+              <div className="catalog-card-actions"><button className="catalog-button catalog-primary" type="button" data-track={`Adicionar ao carrinho: ${product.name}`} onClick={() => addToCart(product)}>Adicionar ao carrinho</button><button className="catalog-button catalog-whatsapp" type="button" data-track={`WhatsApp: ${product.name}`} onClick={() => orderProduct(product)}>Pedir pelo WhatsApp</button></div>
             </div>
           </article>)}</div> : <div className="catalog-empty">Nenhum produto encontrado.</div>}
         </section>

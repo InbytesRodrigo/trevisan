@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { getStore } from '@netlify/blobs';
 import seo from '../../backend/seo.js';
+import analytics from '../../backend/analytics.js';
+import chatFlow from '../../backend/chat-flow.js';
 import { addUser, changeAdminCredentials, currentUser, login, publicUser } from '../lib/auth.mjs';
-import { defaultSettings, deleteDocument, getCatalog, getDocument, getSingleton, listDocuments, putDocument, putSingleton } from '../lib/store.mjs';
+import { defaultSettings, deleteDocument, getCatalog, getDocument, getSingleton, listAnalyticsEvents, listChatMessages, listDocuments, putDocument, putSingleton } from '../lib/store.mjs';
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const fail = (message, status = 400) => json({ error: message }, status);
@@ -24,9 +26,10 @@ async function permission(request, role = 'seller') {
 }
 
 function chatStatus(chat) {
-  if (chat.status === 'closed' || chat.status === 'new') return chat.status;
+  if (chat.status === 'closed') return 'closed';
   const age = Date.now() - (chat.lastVisitorAt || chat.lastMessageAt || chat.createdAt);
   if (chat.unreadSeller > 0 && age > 600000) return 'overdue';
+  if (chat.status === 'new') return 'new';
   if (chat.unreadSeller > 0) return 'waiting';
   return 'open';
 }
@@ -172,7 +175,7 @@ export default async function handler(request) {
       const form = await request.formData();
       const file = form.get('file');
       if (!file || !file.name || file.size > 20 * 1024 * 1024) return fail('Arquivo obrigatorio ou maior que 20 MB');
-      const allowed = /^(image\/(png|jpeg|webp|gif|x-icon|svg\+xml)|application\/pdf)$/;
+      const allowed = /^(image\/(png|jpeg|webp|gif|x-icon|svg\+xml)|audio\/(mpeg|mp3|mp4|x-m4a|aac|ogg|webm|wav|x-wav|wave)|application\/pdf)$/;
       if (!allowed.test(file.type)) return fail('Tipo de arquivo nao permitido');
       const filename = `${randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-100)}`;
       await getStore('site-uploads').set(filename, file, { metadata: { contentType: file.type } });
@@ -199,14 +202,27 @@ export default async function handler(request) {
       await putDocument('leads', item.id, item); return json(item);
     }
 
+    if (method === 'POST' && path === '/analytics/events') {
+      const event = analytics.cleanEvent(await getBody(request));
+      if (!event) return fail('Evento invalido');
+      await putDocument('analytics-events', randomUUID(), event);
+      return json({ ok: true }, 201);
+    }
+    if (method === 'GET' && path === '/analytics') {
+      const { error } = await permission(request, 'admin'); if (error) return error;
+      const range = analytics.analyticsRange(url.searchParams.get('from'), url.searchParams.get('to'));
+      if (!range) return fail('Periodo invalido');
+      return json(analytics.summarizeAnalytics(await listAnalyticsEvents(range.from, range.to), range));
+    }
+
     if (method === 'GET' && path === '/chats') {
       const { error } = await permission(request); if (error) return error;
-      return json((await listDocuments('chats')).map(exposeChat).sort((a, b) => b.lastMessageAt - a.lastMessageAt));
+      return json((await listDocuments('chats')).filter((chat) => chat.lastVisitorAt || chat.visitorPhone || chat.visitorEmail).map(exposeChat).sort((a, b) => b.lastMessageAt - a.lastMessageAt));
     }
     if (method === 'POST' && path === '/chats') {
       const body = await getBody(request);
       const now = Date.now();
-      const chat = { id: randomUUID(), visitorKey: randomUUID(), visitorName: String(body.visitorName || 'Visitante').slice(0, 100), visitorPhone: '', visitorEmail: '', status: 'new', assignedTo: null, assignedName: null, lastMessage: '', lastMessageAt: now, createdAt: now, unreadSeller: 0, unreadVisitor: 0 };
+      const chat = { id: randomUUID(), visitorKey: randomUUID(), visitorName: String(body.visitorName || 'Visitante').slice(0, 100), visitorPhone: '', visitorEmail: '', visitorPage: String(body.visitorPage || '/').slice(0, 150), status: 'new', assignedTo: null, assignedName: null, lastMessage: '', lastMessageAt: now, createdAt: now, unreadSeller: 0, unreadVisitor: 0 };
       await putDocument('chats', chat.id, chat);
       return json({ ...exposeChat(chat), visitorKey: chat.visitorKey });
     }
@@ -216,18 +232,27 @@ export default async function handler(request) {
       const user = await currentUser(request);
       const visitorKey = request.headers.get('x-visitor-key') || url.searchParams.get('key');
       if (!user && visitorKey !== chat.visitorKey) return fail('Acesso negado', 403);
+      if (method === 'GET' && parts.length === 2) return json(exposeChat(chat));
       if (method === 'GET' && parts[2] === 'messages') {
-        return json((await listDocuments('messages')).filter((item) => item.chatId === chat.id).sort((a, b) => a.createdAt - b.createdAt));
+        return json(await listChatMessages(chat.id));
       }
       if (method === 'POST' && parts[2] === 'messages') {
         const body = await getBody(request);
         const value = String(body.text || '').trim().slice(0, 4000);
-        if (!value) return fail('Mensagem vazia');
+        const audioUrl = /^\/uploads\/[a-zA-Z0-9][a-zA-Z0-9._-]{0,139}$/.test(String(body.audioUrl || '')) ? String(body.audioUrl) : '';
+        if (!value && !audioUrl) return fail('Mensagem vazia');
         const automated = Boolean(body.automated) && !user;
+        const chatSettings = automated ? { ...defaultSettings(), ...await getSingleton('settings') } : null;
+        if (automated && !chatFlow.validAutomatedStep(body, chat, chatSettings)) return fail('Etapa automatica invalida', 403);
         const from = user || automated ? 'seller' : 'visitor';
-        const message = { id: randomUUID(), chatId: chat.id, text: value, from, automated, senderName: user?.name || String(body.senderName || chat.visitorName).slice(0, 100), createdAt: Date.now() };
+        const flowStepId = automated ? String(body.flowStepId || '').slice(0, 80) : '';
+        if (flowStepId) {
+          const duplicate = (await listChatMessages(chat.id)).find((item) => item.flowStepId === flowStepId && item.automated);
+          if (duplicate) return json(duplicate);
+        }
+        const message = { id: randomUUID(), chatId: chat.id, text: value, audioUrl, from, automated, flowStepId, senderName: user?.name || (automated ? String(chatSettings.chatAgentName || 'Atendimento').slice(0, 100) : chat.visitorName), createdAt: Date.now() };
         await putDocument('messages', message.id, message);
-        chat.lastMessage = value; chat.lastMessageAt = message.createdAt;
+        chat.lastMessage = value || 'Mensagem de audio'; chat.lastMessageAt = message.createdAt;
         if (from === 'visitor') {
           for (const field of ['visitorName', 'visitorPhone', 'visitorEmail']) if (body[field]) chat[field] = String(body[field]).slice(0, 150);
           chat.lastVisitorAt = message.createdAt; chat.unreadSeller += 1;

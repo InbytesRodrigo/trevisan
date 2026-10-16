@@ -3,199 +3,156 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { useApp } from '../App.jsx';
 
-function beep() {
+function notifySound() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = 'sine';
-    o.frequency.value = 880;
-    g.gain.value = 0.08;
-    o.connect(g); g.connect(ctx.destination);
-    o.start();
-    setTimeout(() => { o.stop(); ctx.close(); }, 180);
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.frequency.value = 840;
+    gain.gain.value = 0.06;
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start();
+    setTimeout(() => { oscillator.stop(); ctx.close(); }, 180);
   } catch {}
 }
 
-function statusOf(c) {
-  if (c.computedStatus) return c.computedStatus;
-  if (c.status === 'closed') return 'closed';
-  if (c.status === 'new') return 'new';
-  return 'open';
+function statusOf(chat) {
+  if (chat.computedStatus) return chat.computedStatus;
+  if (chat.status === 'closed' || chat.status === 'new') return chat.status;
+  return chat.unreadSeller ? 'waiting' : 'open';
 }
 
-export default function Seller() {
-  const { user, logout } = useApp();
+const statusNames = { new: 'Novo', waiting: 'Aguardando', overdue: 'Precisa de atenção', open: 'Em atendimento', closed: 'Encerrado' };
+const time = (value) => new Date(value || Date.now()).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+export default function Seller({ embedded = false }) {
+  const { user, logout, settings } = useApp();
   const nav = useNavigate();
   const [chats, setChats] = useState([]);
   const [active, setActive] = useState(null);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const [filter, setFilter] = useState('all');
+  const [query, setQuery] = useState('');
   const [popup, setPopup] = useState(null);
+  const [error, setError] = useState('');
   const box = useRef(null);
   const activeRef = useRef(null);
-
   useEffect(() => { activeRef.current = active; }, [active]);
 
   useEffect(() => {
     let mounted = true;
     let initialized = false;
-    let previous = [];
+    let previous = new Set();
     const refresh = async () => {
       try {
         const next = await api('/api/chats');
         if (!mounted) return;
         if (initialized) {
-          const oldIds = new Set(previous.map((item) => item.id));
-          const incoming = next.find((item) => !oldIds.has(item.id));
+          const incoming = next.find((item) => !previous.has(item.id));
           if (incoming) {
-            beep();
-            setPopup({ title: 'Novo lead chegou', text: `${incoming.visitorName} iniciou um chat` });
+            if (settings?.chatSound !== false) notifySound();
+            setPopup('NOVO LEAD: ' + (incoming.visitorName || 'Visitante'));
             setTimeout(() => setPopup(null), 6000);
           }
         }
         initialized = true;
-        previous = next;
+        previous = new Set(next.map((item) => item.id));
         setChats(next);
-        const selected = activeRef.current;
-        if (selected) {
-          const updated = next.find((item) => item.id === selected.id);
-          if (updated) setActive(updated);
-          const items = await api(`/api/chats/${selected.id}/messages`);
-          if (mounted && activeRef.current?.id === selected.id) setMessages(items);
+        if (activeRef.current) {
+          const selected = next.find((item) => item.id === activeRef.current.id);
+          if (selected) setActive(selected);
+          const history = await api('/api/chats/' + activeRef.current.id + '/messages');
+          if (mounted && activeRef.current?.id === selected?.id) setMessages(history);
         }
-      } catch {}
+        setError('');
+      } catch (cause) { if (mounted) setError(cause.message); }
     };
     refresh();
-    const timer = setInterval(refresh, 3000);
+    const timer = setInterval(refresh, 4000);
     return () => { mounted = false; clearInterval(timer); };
-  }, []);
+  }, [settings?.chatSound]);
 
   useEffect(() => {
     if (box.current) box.current.scrollTop = box.current.scrollHeight;
   }, [messages]);
 
-  const openChat = async (c) => {
-    setActive(c);
-    await api(`/api/chats/${c.id}/read`, { method: 'POST' });
-    const msgs = await api(`/api/chats/${c.id}/messages`);
-    setMessages(msgs);
+  const openChat = async (chat) => {
+    setActive(chat);
+    activeRef.current = chat;
+    try {
+      const history = await api('/api/chats/' + chat.id + '/messages');
+      setMessages(history);
+      const updated = await api('/api/chats/' + chat.id + '/read', { method: 'POST' });
+      setActive(updated);
+      activeRef.current = updated;
+      setError('');
+    } catch (cause) { setError(cause.message); }
   };
 
   const assign = async () => {
     if (!active) return;
-    const c = await api(`/api/chats/${active.id}/assign`, { method: 'POST' });
-    setActive(c);
+    try {
+      const updated = await api('/api/chats/' + active.id + '/assign', { method: 'POST' });
+      setActive(updated);
+      activeRef.current = updated;
+      return updated;
+    } catch (cause) { setError(cause.message); return null; }
   };
 
-  const send = async (e) => {
-    e.preventDefault();
-    if (!text.trim() || !active) return;
+  const closeChat = async () => {
+    if (!active) return;
+    try {
+      const updated = await api('/api/chats/' + active.id + '/close', { method: 'POST' });
+      setActive(updated);
+      activeRef.current = updated;
+    } catch (cause) { setError(cause.message); }
+  };
+
+  const send = async (event) => {
+    event.preventDefault();
     const value = text.trim();
+    if (!value || !active) return;
     setText('');
     try {
-      const saved = await api(`/api/chats/${active.id}/messages`, { method: 'POST', body: JSON.stringify({ text: value }) });
-      setMessages((prev) => prev.some((item) => item.id === saved.id) ? prev : [...prev, saved]);
-    } catch { setText(value); }
+      if (!active.assignedTo && !(await assign())) { setText(value); return; }
+      const saved = await api('/api/chats/' + active.id + '/messages', { method: 'POST', body: JSON.stringify({ text: value }) });
+      setMessages((current) => current.some((item) => item.id === saved.id) ? current : [...current, saved]);
+      setError('');
+    } catch (cause) { setText(value); setError(cause.message); }
   };
 
-  const list = useMemo(() => {
-    return chats.filter((c) => {
-      const st = statusOf(c);
-      if (filter === 'all') return true;
-      if (filter === 'new') return st === 'new';
-      if (filter === 'waiting') return st === 'waiting';
-      if (filter === 'overdue') return st === 'overdue';
-      if (filter === 'mine') return c.assignedTo === user?.id;
-      return true;
-    });
-  }, [chats, filter, user]);
+  const list = useMemo(() => chats.filter((chat) => {
+    const status = statusOf(chat);
+    const match = !query || [chat.visitorName, chat.visitorPhone, chat.visitorEmail].some((value) => String(value || '').toLocaleLowerCase('pt-BR').includes(query.toLocaleLowerCase('pt-BR')));
+    return match && (filter === 'all' || (filter === 'mine' ? chat.assignedTo === user?.id : status === filter));
+  }).sort((a, b) => (b.lastMessageAt || b.createdAt) - (a.lastMessageAt || a.createdAt)), [chats, filter, query, user?.id]);
 
   const counts = {
     all: chats.length,
-    new: chats.filter((c) => statusOf(c) === 'new').length,
-    waiting: chats.filter((c) => statusOf(c) === 'waiting').length,
-    overdue: chats.filter((c) => statusOf(c) === 'overdue').length,
+    new: chats.filter((chat) => statusOf(chat) === 'new').length,
+    waiting: chats.filter((chat) => statusOf(chat) === 'waiting').length,
+    overdue: chats.filter((chat) => statusOf(chat) === 'overdue').length,
   };
 
-  return (
-    <div className={`inbox ${active ? 'has-active-chat' : ''}`}>
-      {popup && (
-        <div className="popup">
-          <strong>{popup.title}</strong>
-          <div>{popup.text}</div>
-        </div>
-      )}
-      <div className="inbox-list">
-        <header>
-          <span>{user?.name}</span>
-          <span>
-            <Link to="/" style={{ marginRight: 10 }}>Site</Link>
-            <button className="chip" onClick={() => { logout(); nav('/login'); }}>Sair</button>
-          </span>
-        </header>
-        <div className="filters">
-          {[
-            ['all', `Todos ${counts.all}`],
-            ['new', `Novos ${counts.new}`],
-            ['waiting', `Aguardando ${counts.waiting}`],
-            ['overdue', `Atrasados ${counts.overdue}`],
-            ['mine', 'Meus'],
-          ].map(([k, lab]) => (
-            <button key={k} className={`chip ${filter === k ? 'on' : ''}`} onClick={() => setFilter(k)}>{lab}</button>
-          ))}
-        </div>
-        <div style={{ overflowY: 'auto', flex: 1 }}>
-          {list.map((c) => {
-            const st = statusOf(c);
-            return (
-              <div key={c.id} className={`conv ${st} ${active?.id === c.id ? 'active' : ''}`} onClick={() => openChat(c)}>
-                <div className="cw-av" style={{ background: st === 'overdue' ? '#c0392b' : st === 'new' ? '#25d366' : st === 'waiting' ? '#f1c40f' : '#128c7e', color: '#fff', width: 42, height: 42 }}>
-                  {(c.visitorName || 'V').slice(0, 1).toUpperCase()}
-                </div>
-                <div className="conv-meta">
-                  <b>{c.visitorName} {c.unreadSeller ? <span className="badge">{c.unreadSeller}</span> : null}</b>
-                  <p>{c.lastMessage || 'Novo lead'}</p>
-                  <p>{c.assignedName || 'Sem atendente'} · {new Date(c.lastMessageAt || c.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
-                </div>
-              </div>
-            );
-          })}
-          {!list.length && <p style={{ padding: 16, color: '#667781' }}>Nenhum chat neste filtro.</p>}
-        </div>
-      </div>
-      <div className="thread">
-        {active ? (
-          <>
-            <div className="thread-head">
-              <button className="seller-back" type="button" onClick={() => setActive(null)} aria-label="Voltar às conversas">←</button>
-              <div>
-                <strong>{active.visitorName}</strong>
-                <div style={{ fontSize: 12, color: '#667781' }}>{active.visitorPhone} · {active.visitorEmail}</div>
-              </div>
-              <div>
-                {!active.assignedTo && <button className="btn" onClick={assign}>Atender</button>}
-                {active.assignedTo && <span style={{ fontSize: 13 }}>Com {active.assignedName}</span>}
-              </div>
-            </div>
-            <div className="thread-body" ref={box}>
-              {messages.map((m) => (
-                <div key={m.id} className={`bubble ${m.from === 'seller' ? 'mine' : 'theirs'}`}>
-                  {m.text}
-                  <time>{m.senderName} · {new Date(m.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time>
-                </div>
-              ))}
-            </div>
-            <form className="cw-send" onSubmit={send}>
-              <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Digite uma mensagem" />
-              <button type="submit">{'>'}</button>
-            </form>
-          </>
-        ) : (
-          <div style={{ margin: 'auto', color: '#667781' }}>Selecione um chat para atender em tempo real.</div>
-        )}
-      </div>
+  return <div className={'inbox lead-inbox' + (embedded ? ' inbox-embedded' : '') + (active ? ' has-active-chat' : '')}>
+    {popup && <div className="popup"><strong>{popup}</strong><div>Abra a conversa para ver os dados e responder.</div></div>}
+    <div className="inbox-list">
+      <header><div><small>CENTRAL DE ATENDIMENTO</small><strong>Leads e conversas</strong></div>{!embedded && <span><Link to="/">Site</Link><button className="chip" type="button" onClick={() => { logout(); nav('/login'); }}>Sair</button></span>}</header>
+      <div className="lead-list-tools"><input value={query} onChange={(event) => setQuery(event.target.value)} type="search" placeholder="Buscar nome, telefone ou e-mail" aria-label="Buscar leads" /><div className="filters">{[['all', 'Todos ' + counts.all], ['new', 'Novos ' + counts.new], ['waiting', 'Aguardando ' + counts.waiting], ['overdue', 'Atrasados ' + counts.overdue], ['mine', 'Meus']].map(([key, label]) => <button key={key} type="button" className={'chip' + (filter === key ? ' on' : '')} onClick={() => setFilter(key)}>{label}</button>)}</div></div>
+      <div className="lead-list-scroll">{list.map((chat) => <button type="button" key={chat.id} className={'conv lead-conv ' + statusOf(chat) + (active?.id === chat.id ? ' active' : '')} onClick={() => openChat(chat)}>
+        <span className="cw-av">{(chat.visitorName || 'V').slice(0, 1).toUpperCase()}</span>
+        <span className="conv-meta"><span className="lead-conv-line"><b>{chat.visitorName || 'Visitante'}</b>{chat.unreadSeller > 0 && <span className="badge">{chat.unreadSeller}</span>}</span><span className="lead-tag">NOVO LEAD</span><span className="lead-status">{statusNames[statusOf(chat)] || 'Em atendimento'}</span><p>{chat.lastMessage || 'Conversa iniciada'}</p><small>{time(chat.lastMessageAt || chat.createdAt)}</small></span>
+      </button>)}{!list.length && <p className="lead-empty">Nenhum lead neste filtro.</p>}</div>
     </div>
-  );
+    <div className="thread lead-thread">{active ? <>
+      <div className="thread-head"><button className="seller-back" type="button" onClick={() => setActive(null)} aria-label="Voltar às conversas">←</button><div className="lead-thread-title"><span className="lead-tag">NOVO LEAD</span><strong>{active.visitorName || 'Visitante'}</strong><small>Iniciou em {time(active.createdAt)}</small></div><div className="lead-thread-actions">{!active.assignedTo && <button className="btn" type="button" onClick={assign}>Atender</button>}{active.status !== 'closed' && <button className="btn ghost" type="button" onClick={closeChat}>Encerrar</button>}</div></div>
+      <div className="lead-mobile-details"><strong>Dados do lead</strong><span>{active.visitorPhone || 'Telefone não informado'}</span><span>{active.visitorEmail || 'E-mail não informado'}</span></div>
+      <div className="thread-body" ref={box}>{messages.map((message) => <div key={message.id} className={'bubble ' + (message.from === 'seller' ? 'mine' : 'theirs')}>{message.text && <span>{message.text}</span>}{message.audioUrl && <audio controls preload="none" src={message.audioUrl} aria-label="Mensagem de áudio" />}<time>{message.senderName} · {time(message.createdAt)}</time></div>)}</div>
+      {error && <p className="lead-error" role="alert">{error}</p>}
+      <form className="cw-send" onSubmit={send}><input value={text} onChange={(event) => setText(event.target.value)} placeholder="Responder ao lead" aria-label="Responder ao lead" /><button type="submit" disabled={!text.trim()} aria-label="Enviar resposta">➤</button></form>
+    </> : <div className="lead-placeholder"><span>✦</span><h2>Seus leads em um só lugar</h2><p>Selecione uma conversa para ver os dados do contato e responder.</p>{error && <p className="lead-error" role="alert">{error}</p>}</div>}</div>
+    {active && <aside className="lead-details"><span className="lead-tag">NOVO LEAD</span><h3>Dados do contato</h3><dl><dt>Nome</dt><dd>{active.visitorName || 'Visitante'}</dd><dt>Telefone</dt><dd>{active.visitorPhone ? <a href={'tel:' + active.visitorPhone.replace(/\D/g, '')}>{active.visitorPhone}</a> : 'Não informado'}</dd><dt>E-mail</dt><dd>{active.visitorEmail ? <a href={'mailto:' + active.visitorEmail}>{active.visitorEmail}</a> : 'Não informado'}</dd><dt>Origem</dt><dd>{active.visitorPage || 'Site'}</dd><dt>Entrou em</dt><dd>{time(active.createdAt)}</dd><dt>Status</dt><dd>{statusNames[statusOf(active)] || 'Em atendimento'}</dd><dt>Atendente</dt><dd>{active.assignedName || 'Ainda não atribuído'}</dd></dl>{active.visitorPhone && <a className="lead-whatsapp" href={'https://wa.me/' + active.visitorPhone.replace(/\D/g, '')} target="_blank" rel="noopener noreferrer">Chamar lead no WhatsApp ↗</a>}</aside>}
+  </div>;
 }

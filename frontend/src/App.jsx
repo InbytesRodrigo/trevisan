@@ -6,6 +6,7 @@ import Catalog from './pages/Catalog.jsx';
 import Login from './pages/Login.jsx';
 import Admin from './pages/Admin.jsx';
 import Seller from './pages/Seller.jsx';
+import { trackClickedItem, trackSiteEvent } from './analytics.js';
 
 const Ctx = createContext(null);
 export const useApp = () => useContext(Ctx);
@@ -47,6 +48,13 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const loc = useLocation();
+
+  useEffect(() => {
+    if (/^\/(admin|vendedor|login)(\/|$)/.test(loc.pathname)) return;
+    trackSiteEvent('pageview');
+    document.addEventListener('click', trackClickedItem, true);
+    return () => document.removeEventListener('click', trackClickedItem, true);
+  }, [loc.pathname]);
 
   useEffect(() => {
     Promise.all([

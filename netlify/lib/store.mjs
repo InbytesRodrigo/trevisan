@@ -39,6 +39,21 @@ export async function listDocuments(collection) {
   return rows.map((row) => row.data);
 }
 
+export async function listChatMessages(chatId) {
+  const rows = await db().sql`SELECT data FROM site_documents
+    WHERE collection = ${'messages'} AND data->>'chatId' = ${String(chatId)}
+    ORDER BY (data->>'createdAt')::bigint ASC`;
+  return rows.map((row) => row.data);
+}
+
+export async function listAnalyticsEvents(from, to) {
+  const rows = await db().sql`SELECT data FROM site_documents
+    WHERE collection = ${'analytics-events'}
+      AND (data->>'createdAt')::bigint >= ${from}
+      AND (data->>'createdAt')::bigint <= ${to}`;
+  return rows.map((row) => row.data);
+}
+
 export async function getCatalog() {
   const marker = await getDocument('catalog-meta', 'initialized');
   if (!marker) {
